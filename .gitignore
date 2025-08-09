@@ -1,0 +1,42 @@
+# Visual Studio / Visual Studio Code
+/.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+/App/bin/
+/App/obj/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Application-specific
+/releases/
+debug.csv
+settings.json
+VaultFilesList.json
+VaultTagsList.json
+VaultTagsListDebug.json
+
+# Runtime files
+*.log
+*.pdb
+*.cache
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

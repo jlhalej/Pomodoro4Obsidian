@@ -1,0 +1,504 @@
+using System;
+using System.Windows.Threading;
+using System.Globalization;
+using System.IO;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Linq;
+using System.Collections.Generic;
+
+namespace PomodoroForObsidian
+{
+    public class PomodoroSessionManager
+    {
+        private static PomodoroSessionManager? _instance;
+        public static PomodoroSessionManager Instance => _instance ??= new PomodoroSessionManager();
+
+        private DispatcherTimer _timer;
+        private TimeSpan _timeLeft;
+        private bool _isRunning;
+        private int _pomodoroLength;
+
+        private bool _reverseCountdown = false;
+        private TimeSpan _reverseTime = TimeSpan.Zero;
+        public event EventHandler? ReverseCountdownStarted;
+
+        public event EventHandler<TimeSpan>? Tick;
+        public event EventHandler? Started;
+        public event EventHandler? Stopped;
+        public event EventHandler? Reset;
+
+        private string? _lastTask;
+        private string? _lastProject;
+
+        private DispatcherTimer _negativeTimer;
+        private TimeSpan _negativeTimeElapsed = TimeSpan.Zero;
+        public event EventHandler<TimeSpan>? NegativeTimerTick;
+
+        private PomodoroSessionManager()
+        {
+            _pomodoroLength = 25;
+            _timer = new DispatcherTimer();
+            _timer.Interval = TimeSpan.FromSeconds(1);
+            _timer.Tick += Timer_Tick;
+            ResetTimer();
+        }
+
+        public void SetPomodoroLength(int minutes)
+        {
+            _pomodoroLength = minutes;
+            if (!_isRunning)
+                ResetTimer();
+        }
+
+        public void Start(string? task = null, string? project = null)
+        {
+            Utils.LogDebug(nameof(Start), $"Start called. _isRunning={_isRunning}, task={task}, project={project}");
+            if (!_isRunning)
+            {
+                var settings = AppSettings.Load();
+                if (string.IsNullOrEmpty(settings.CurrentSessionTimestamp))
+                {
+                    SetPomodoroLength(settings.PomodoroTimerLength); // Only reset timer for new session
+                    var newTimestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+                    Utils.LogDebug(nameof(Start), $"Assigning new session timestamp: {newTimestamp}");
+                    settings.CurrentSessionTimestamp = newTimestamp;
+                    settings.CurrentSessionStartTime = DateTime.Now;
+                    settings.Save();
+                    Utils.LogDebug(nameof(Start), $"Saved session timestamp to settings: {settings.CurrentSessionTimestamp}");
+                }
+                else
+                {
+                    Utils.LogDebug(nameof(Start), $"Continuing session with existing timestamp: {settings.CurrentSessionTimestamp}");
+                }
+                _lastTask = task;
+                _lastProject = project;
+                _isRunning = true;
+                _timer.Start();
+                Started?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public void Stop()
+        {
+            Utils.LogDebug(nameof(Stop), $"Stop called. _isRunning={_isRunning}");
+            if (_isRunning)
+            {
+                _isRunning = false;
+                _timer.Stop();
+                StopNegativeTimer();
+                Utils.LogDebug(nameof(Stop), "Calling LogStoppedSessionToObsidian");
+                LogStoppedSessionToObsidian();
+                // Reset timer in mini window and reset session timestamp/start time
+                ResetTimer();
+                ResetSessionTimestamp();
+                Stopped?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public void Pause()
+        {
+            Utils.LogDebug(nameof(Pause), $"Pause called. _isRunning={_isRunning}");
+            if (_isRunning)
+            {
+                _isRunning = false;
+                _timer.Stop();
+                StopNegativeTimer();
+                Utils.LogDebug(nameof(Pause), "Calling LogPausedSessionToObsidian");
+                LogPausedSessionToObsidian();
+                Stopped?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        public void ResetTimer()
+        {
+            _timeLeft = TimeSpan.FromMinutes(_pomodoroLength);
+            _isRunning = false;
+            _timer.Stop();
+            _reverseCountdown = false;
+            _reverseTime = TimeSpan.Zero;
+            Reset?.Invoke(this, EventArgs.Empty);
+            Tick?.Invoke(this, _timeLeft);
+        }
+
+        private void Timer_Tick(object? sender, EventArgs e)
+        {
+            var settings = AppSettings.Load();
+            if (!_reverseCountdown)
+            {
+                if (_timeLeft.TotalSeconds > 0)
+                {
+                    _timeLeft = _timeLeft.Add(TimeSpan.FromSeconds(-1));
+                    Tick?.Invoke(this, _timeLeft);
+                    // Check for maximum session length
+                    if (settings.MaximumSessionLength > 0 && (DateTime.Now - (settings.CurrentSessionStartTime ?? DateTime.Now)).TotalMinutes >= settings.MaximumSessionLength)
+                    {
+                        Utils.LogDebug(nameof(Timer_Tick), "Maximum session length reached. Stopping timer.");
+                        Stop();
+                        return;
+                    }
+                }
+                else
+                {
+                    // Timer reached 0: log session, notify, start negative timer
+                    LogPausedSessionToObsidian();
+                    Utils.BubbleNotification("Pomodoro completed.");
+                    _reverseCountdown = true;
+                    _reverseTime = TimeSpan.Zero;
+                    ReverseCountdownStarted?.Invoke(this, EventArgs.Empty);
+                    Tick?.Invoke(this, TimeSpan.Zero); // Show 00:00 at transition
+                    if (!_timer.IsEnabled)
+                        _timer.Start();
+                    System.Diagnostics.Debug.WriteLine("[PomodoroSessionManager] Reverse countdown started.");
+                    StartNegativeTimer();
+                }
+            }
+            else
+            {
+                // Reverse countdown: keep timer running, but NegativeTimer handles display
+            }
+        }
+
+        private void StartNegativeTimer()
+        {
+            if (_negativeTimer == null)
+            {
+                _negativeTimer = new DispatcherTimer();
+                _negativeTimer.Interval = TimeSpan.FromSeconds(1);
+                _negativeTimer.Tick += (s, e) =>
+                {
+                    _negativeTimeElapsed = _negativeTimeElapsed.Add(TimeSpan.FromSeconds(1));
+                    NegativeTimerTick?.Invoke(this, _negativeTimeElapsed);
+                };
+            }
+            _negativeTimeElapsed = TimeSpan.Zero;
+            _negativeTimer.Start();
+        }
+
+        private void StopNegativeTimer()
+        {
+            if (_negativeTimer != null)
+                _negativeTimer.Stop();
+            _negativeTimeElapsed = TimeSpan.Zero;
+        }
+
+        private void LogPausedSessionToObsidian()
+        {
+            Utils.LogDebug(nameof(LogPausedSessionToObsidian), "Begin logging session to journal");
+            var settings = AppSettings.Load();
+            string timestamp = settings.CurrentSessionTimestamp ?? DateTime.Now.ToString("yyyyMMddHHmmssfff");
+            DateTime start = settings.CurrentSessionStartTime ?? DateTime.Now;
+            DateTime end = DateTime.Now;
+            if (start.Hour == end.Hour && start.Minute == end.Minute)
+            {
+                Utils.LogDebug(nameof(LogPausedSessionToObsidian), "Start and end time are in the same minute, not logging session.");
+                return;
+            }
+            if (start == end)
+            {
+                Utils.LogDebug(nameof(LogPausedSessionToObsidian), "Start and end time are the same, not logging session.");
+                return;
+            }
+            string today = DateTime.Now.ToString(settings.JournalNoteFormat.Replace("YYYY", "yyyy").Replace("DD", "dd"), CultureInfo.InvariantCulture);
+            string journalFile = Path.Combine(settings.ObsidianJournalPath, today + ".md");
+            string header = string.IsNullOrWhiteSpace(settings.Header) ? "# Pomodoro Sessions" : settings.Header;
+            string task = settings.CurrentSessionInputField ?? string.Empty;
+            string project = string.Empty;
+            string entry = $"- {start:HH:mm} - {end:HH:mm} {task} {project} {timestamp}";
+
+            Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Preparing to log session. Timestamp: {timestamp}, Start: {start:HH:mm}, End: {end:HH:mm}, Task: '{task}', JournalFile: {journalFile}");
+            Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Looking for header: '{header}' in journal file: {journalFile}");
+
+            if (!File.Exists(journalFile))
+            {
+                using (var sw = new StreamWriter(journalFile, false))
+                {
+                    sw.WriteLine(header);
+                    sw.WriteLine(entry);
+                }
+                Utils.LogDebug(nameof(LogPausedSessionToObsidian), "Journal file did not exist, created and wrote header/entry.");
+                return;
+            }
+
+            // Efficient update: only update or append the entry, not rewrite the whole file if not needed
+            var linesList = new System.Collections.Generic.List<string>(File.ReadAllLines(journalFile));
+            bool foundHeader = false;
+            int headerIndex = -1;
+            int foundLine = -1;
+            for (int i = 0; i < linesList.Count; i++)
+            {
+                if (linesList[i].Trim() == header)
+                {
+                    foundHeader = true;
+                    headerIndex = i;
+                }
+                if (linesList[i].Contains(timestamp))
+                {
+                    foundLine = i;
+                }
+            }
+
+            if (foundLine != -1)
+            {
+                // Update the line in place
+                linesList[foundLine] = entry;
+                File.WriteAllLines(journalFile, linesList);
+                Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Updated session entry at line {foundLine} in journal file: {journalFile}");
+            }
+            else if (foundHeader)
+            {
+                // Insert after header
+                linesList.Insert(headerIndex + 1, entry);
+                File.WriteAllLines(journalFile, linesList);
+                Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Appended new session entry after header at line {headerIndex + 1} in journal file: {journalFile}");
+            }
+            else
+            {
+                // Append at end
+                linesList.Add("");
+                linesList.Add(header);
+                linesList.Add(entry);
+                File.WriteAllLines(journalFile, linesList);
+                Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Header not found, appended header and new session entry at end of journal file: {journalFile}");
+            }
+        }
+
+        private void LogStoppedSessionToObsidian()
+        {
+            Utils.LogDebug(nameof(LogStoppedSessionToObsidian), "Begin logging stopped session to journal");
+            var settings = AppSettings.Load();
+            DateTime start = settings.CurrentSessionStartTime ?? DateTime.Now;
+            DateTime end = DateTime.Now;
+            if (start.Hour == end.Hour && start.Minute == end.Minute)
+            {
+                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), "Start and end time are in the same minute, not logging session.");
+                return;
+            }
+            if (start == end)
+            {
+                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), "Start and end time are the same, not logging session.");
+                return;
+            }
+            string today = DateTime.Now.ToString(settings.JournalNoteFormat.Replace("YYYY", "yyyy").Replace("DD", "dd"), CultureInfo.InvariantCulture);
+            string journalFile = Path.Combine(settings.ObsidianJournalPath, today + ".md");
+            string header = string.IsNullOrWhiteSpace(settings.Header) ? "# Pomodoro Sessions" : settings.Header;
+            string task = settings.CurrentSessionInputField ?? string.Empty;
+            string project = string.Empty;
+            string timestamp = settings.CurrentSessionTimestamp;
+            string entry = $"- {start:HH:mm} - {end:HH:mm} {task} {project}";
+
+            Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Preparing to log stopped session. Start: {start:HH:mm}, End: {end:HH:mm}, Task: '{task}', JournalFile: {journalFile}, Timestamp: {timestamp}");
+            Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Looking for header: '{header}' in journal file: {journalFile}");
+
+            if (!File.Exists(journalFile))
+            {
+                using (var sw = new StreamWriter(journalFile, false))
+                {
+                    sw.WriteLine(header);
+                    sw.WriteLine(entry);
+                }
+                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), "Journal file did not exist, created and wrote header/entry.");
+                return;
+            }
+
+            // Remove any previous paused entry with the timestamp
+            var linesList = new System.Collections.Generic.List<string>(File.ReadAllLines(journalFile));
+            bool foundHeader = false;
+            int headerIndex = -1;
+            bool removedPausedEntry = false;
+            if (!string.IsNullOrEmpty(timestamp))
+            {
+                for (int i = linesList.Count - 1; i >= 0; i--)
+                {
+                    if (linesList[i].Contains(timestamp))
+                    {
+                        Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Found and removing previous paused entry with timestamp: {timestamp} at line {i}");
+                        linesList.RemoveAt(i);
+                        removedPausedEntry = true;
+                    }
+                }
+            }
+            for (int i = 0; i < linesList.Count; i++)
+            {
+                if (linesList[i].Trim() == header)
+                {
+                    foundHeader = true;
+                    headerIndex = i;
+                }
+            }
+
+            if (removedPausedEntry)
+            {
+                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"A previously paused session entry was found and removed. The new stopped session will be written without the timestamp.");
+            }
+            else
+            {
+                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"No previous paused session entry with timestamp {timestamp} was found. Writing stopped session entry.");
+            }
+
+            if (foundHeader)
+            {
+                // Find the end of the header section (either next header or end of file)
+                int insertIndex = linesList.Count; // Default to end of file
+                for (int i = headerIndex + 1; i < linesList.Count; i++)
+                {
+                    string line = linesList[i].Trim();
+                    // Check if this line is another header (starts with #)
+                    if (line.StartsWith("#") && line.Length > 1)
+                    {
+                        insertIndex = i;
+                        break;
+                    }
+                }
+
+                linesList.Insert(insertIndex, entry);
+                File.WriteAllLines(journalFile, linesList);
+                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Appended stopped session entry at end of section at line {insertIndex} in journal file: {journalFile}");
+            }
+            else
+            {
+                linesList.Add("");
+                linesList.Add(header);
+                linesList.Add(entry);
+                File.WriteAllLines(journalFile, linesList);
+                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Header not found, appended header and stopped session entry at end of journal file: {journalFile}");
+            }
+        }
+
+        public bool IsRunning => _isRunning;
+        public TimeSpan TimeLeft => _timeLeft;
+
+        // Add: Update the current session input field (task)
+        public void UpdateCurrentTask(string task)
+        {
+            var settings = AppSettings.Load();
+            settings.CurrentSessionInputField = task;
+            System.Diagnostics.Debug.WriteLine("Saving Settings in UpdateCurrentTask");
+
+            settings.Save();
+        }
+
+        // Add: Reset session state (timestamp, start time, input field)
+        public void ResetSessionState()
+        {
+            var settings = AppSettings.Load();
+            settings.CurrentSessionTimestamp = null;
+            settings.CurrentSessionStartTime = null;
+            settings.CurrentSessionInputField = null;
+            System.Diagnostics.Debug.WriteLine("Resetting Settings in ResetSessionState");
+
+            settings.Save();
+        }
+
+        // Add: Reset session timestamp and start time only
+        public void ResetSessionTimestamp()
+        {
+            var settings = AppSettings.Load();
+            settings.CurrentSessionTimestamp = null;
+            settings.CurrentSessionStartTime = null;
+            System.Diagnostics.Debug.WriteLine("Resetting Timestamp and StartTime in ResetSessionTimestamp");
+            settings.Save();
+        }
+
+        // Add: Update Pomodoro length and save
+        public void UpdatePomodoroLength(int newLength)
+        {
+            var settings = AppSettings.Load();
+            settings.PomodoroTimerLength = newLength;
+            System.Diagnostics.Debug.WriteLine("saving settings in UpdatePomodoroLenthth");
+
+            settings.Save();
+            SetPomodoroLength(newLength);
+        }
+
+        // Add: Add a tag to settings
+        public void AddTag(string tag)
+        {
+            var settings = AppSettings.Load();
+            if (!string.IsNullOrEmpty(tag) && !settings.Tags.Contains(tag))
+            {
+                settings.Tags.Add(tag);
+                System.Diagnostics.Debug.WriteLine("saving settings in AddTag");
+                settings.Save();
+            }
+        }
+
+        // Add: Get all .md files from the Obsidian Vault path and save to VaultFilesList.json and VaultTagsList.json
+        public void GetFileListFromVault()
+        {
+            var settings = AppSettings.Load();
+            string vaultPath = settings.ObsidianVaultPath;
+            if (string.IsNullOrWhiteSpace(vaultPath) || !Directory.Exists(vaultPath))
+            {
+                Utils.LogDebug(nameof(GetFileListFromVault), $"Vault path is not set or does not exist: '{vaultPath}'");
+                return;
+            }
+            var startTime = DateTime.Now;
+            Utils.LogDebug(nameof(GetFileListFromVault), $"Started scanning vault at {startTime:O}");
+            try
+            {
+                var mdFiles = Directory.GetFiles(vaultPath, "*.md", SearchOption.AllDirectories)
+                    .ToList();
+                var fileNames = mdFiles.Select(f => Path.GetFileNameWithoutExtension(f)).Distinct().ToList();
+                var tagSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var tagFileMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase); // For debug
+                // Updated regex: only match # if at start of line or preceded by space/tab, and not followed by /
+                var tagRegex = new Regex(@"(^|[ \t])#(?!/)[^\s#]+", RegexOptions.Compiled);
+                foreach (var file in mdFiles)
+                {
+                    try
+                    {
+                        var content = File.ReadAllText(file);
+                        foreach (Match match in tagRegex.Matches(content))
+                        {
+                            // Use group 0 if match at start, group 2 if preceded by whitespace
+                            string tag = match.Groups.Count > 2 ? match.Groups[0].Value.TrimStart() : match.Value;
+                            // Clean up: ignore tags with forbidden chars or malformed
+                            if (tag.Length <= 1) continue;
+                            tag = tag.Normalize(System.Text.NormalizationForm.FormC).Trim();
+                            if (tag.Any(c => char.IsControl(c) || c == ',' || c == '"' || c == '\'' || c == '\\' || c == '%' || c == '^' || c == '&' || c == '(' || c == ')')) continue;
+                            tag = tag.Trim(' ', ',', '"', '\'', ')', '�', '�', '�', '.', ';', ':', '-', '_');
+                            while (tag.Length > 1 && !char.IsLetterOrDigit(tag[tag.Length - 1]) && tag[tag.Length - 1] != '/')
+                                tag = tag.Substring(0, tag.Length - 1);
+                            while (tag.Length > 1 && !char.IsLetterOrDigit(tag[1]) && tag[1] != '/')
+                                tag = tag[0] + tag.Substring(2);
+                            if (tag.Length <= 1) continue;
+                            var tagBody = tag.Length > 1 ? tag.Substring(1) : string.Empty;
+                            if (System.Text.RegularExpressions.Regex.IsMatch(tagBody, @"^[0-9.]+$")) continue;
+                            if (!tagSet.Contains(tag))
+                                tagSet.Add(tag);
+                            if (SettingsWindow.DebugLogEnabled)
+                            {
+                                if (!tagFileMap.ContainsKey(tag))
+                                    tagFileMap[tag] = new List<string>();
+                                tagFileMap[tag].Add(file);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.LogDebug(nameof(GetFileListFromVault), $"Error reading file '{file}': {ex.Message}");
+                    }
+                }
+                string outputFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "VaultFilesList.json");
+                File.WriteAllText(outputFile, JsonSerializer.Serialize(fileNames, new JsonSerializerOptions { WriteIndented = true }));
+                string tagFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "VaultTagsList.json");
+                File.WriteAllText(tagFile, JsonSerializer.Serialize(tagSet.OrderBy(t => t), new JsonSerializerOptions { WriteIndented = true }));
+                if (SettingsWindow.DebugLogEnabled)
+                {
+                    string debugTagFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "VaultTagsListDebug.json");
+                    File.WriteAllText(debugTagFile, JsonSerializer.Serialize(tagFileMap.OrderBy(kvp => kvp.Key), new JsonSerializerOptions { WriteIndented = true }));
+                }
+                var endTime = DateTime.Now;
+                Utils.LogDebug(nameof(GetFileListFromVault), $"Finished scanning vault at {endTime:O}. Duration: {(endTime - startTime).TotalSeconds:F2} seconds. Found {fileNames.Count} .md files and {tagSet.Count} tags.");
+            }
+            catch (Exception ex)
+            {
+                Utils.LogDebug(nameof(GetFileListFromVault), $"Error reading vault files: {ex.Message}");
+            }
+        }
+
+        public bool IsReverseCountdown => _reverseCountdown;
+    }
+}

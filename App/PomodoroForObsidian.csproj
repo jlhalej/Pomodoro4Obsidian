@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>timer16.ico</ApplicationIcon>
+    <Version>1.0.7.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="timer16.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="timer16.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

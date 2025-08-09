@@ -1,0 +1,14 @@
+<Window x:Class="PomodoroForObsidian.TagPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Select Tag" Height="350" Width="400" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" WindowStyle="ToolWindow">
+    <Grid Background="#1a1523">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBox x:Name="SearchBox" Margin="10,10,10,5" Height="32" FontSize="16" Background="#2d223a" Foreground="White" BorderBrush="#a06fc6" BorderThickness="2"/>
+        <ListBox x:Name="TagList" Grid.Row="1" Margin="10,0,10,10" FontSize="16" Background="#2d223a" Foreground="White" BorderBrush="#a06fc6" BorderThickness="2"/>
+        <TextBlock x:Name="CreateHint" Grid.Row="1" Margin="14,8,14,0" VerticalAlignment="Top" Foreground="#d18be9" FontSize="14" Visibility="Collapsed" Text="Press Ctrl+Enter to create new tag"/>
+    </Grid>
+</Window>
