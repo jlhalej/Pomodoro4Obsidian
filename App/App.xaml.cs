@@ -36,9 +36,6 @@ namespace PomodoroForObsidian
             this.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             _trayIcon = new TrayIcon();
             bool isFirstRun;
-            string settingsPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json");
-            bool settingsExists = System.IO.File.Exists(settingsPath);
-            Utils.LogDebug("App", $"settings.json found: {settingsExists}");
             _settings = PomodoroForObsidian.AppSettings.Load(out isFirstRun);
 
             // Initialize the taskbar manager

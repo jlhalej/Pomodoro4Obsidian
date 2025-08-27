@@ -1,6 +1,6 @@
 # Pomodoro4Obsidian
 
-A portable Windows desktop application that combines the Pomodoro Technique with seamless Obsidian integration. Track your focused work sessions and automatically log them to your Obsidian daily notes.
+A Windows desktop application that combines the Pomodoro Technique with seamless Obsidian integration. Track your focused work sessions and automatically log them to your Obsidian daily notes.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)
@@ -34,17 +34,11 @@ A portable Windows desktop application that combines the Pomodoro Technique with
 
 ### Installation
 
-#### Option 1: Download Release (Recommended)
-1. Download the latest release from the [Releases page](../../releases)
-2. Extract the ZIP file to your preferred location
-3. Run `Pomodoro4Obsidian.exe`
+1. Download `PomodoroForObsidianSetup.exe` from the [latest release](../../releases/latest)
+2. Run the installer to install the application
+3. The app will automatically check for updates in the background
 
-#### Option 2: Build from Source
-```bash
-git clone https://github.com/jlhalej/Pomodoro4Obsidian.git
-cd Pomodoro4Obsidian
-dotnet build -c Release -o ./releases
-```
+> **Note**: This installer-based version includes automatic update functionality. Once installed, future updates will be downloaded and applied automatically.
 
 ### First-time Setup
 1. Launch the application
@@ -84,25 +78,31 @@ Sessions are logged in this format:
 - **Notifications**: Enable/disable alerts
 - **Taskbar Integration**: Optional taskbar modifications
 
-### Portable Design
-- **No installation required** - Run from any location
-- **Self-contained** - All settings stored locally
-- **No registry changes** - Completely portable
-- **USB friendly** - Perfect for shared computers
+### 🔄 Auto-Update System
+- **Background checking** - Automatically checks for updates every 24 hours
+- **Manual updates** - Check for updates on-demand via Settings > Updates
+- **Seamless installation** - Downloads and installs updates automatically
+- **User control** - Enable/disable automatic updates in Settings
 
 ## 🛠️ Development
 
 ### Building the Project
 ```bash
+# Clone the repository
+git clone https://github.com/jlhalej/Pomodoro4Obsidian.git
+cd Pomodoro4Obsidian
+
 # Debug build
 dotnet build
 
 # Release build
 dotnet build -c Release
 
-# Self-contained deployment
-dotnet publish -c Release -r win-x64 --self-contained true -o ./releases
+# Create Squirrel release package
+.\scripts\build-squirrel-release.ps1
 ```
+
+For detailed build and release instructions, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ### Project Structure
 ```
@@ -155,24 +155,36 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Note**: This application is designed to work seamlessly with Obsidian but is not officially affiliated with Obsidian.md.
 
-Pomodoro4Obsidian is a portable, self-contained Pomodoro timer app for Windows, built with C# and WPF. It features a modern UI, system tray integration, and seamless logging to Obsidian daily notes.
+Pomodoro4Obsidian is a Windows desktop application that helps you implement the Pomodoro Technique with seamless Obsidian integration. Built with .NET 8.0 and WPF, it features automatic updates and professional installation.
 
 ## Features
-- Circular Pomodoro timer
-- Task input field
-- Project and tags dropdowns
-- Start/stop button
-- Portable: no installation required
-- Obsidian integration for session logging
+- Circular Pomodoro timer with customizable durations
+- Task input field with project and tag support
+- System tray integration for background operation
+- Automatic session logging to Obsidian daily notes
+- Professional installer with automatic updates
+- Settings management for personalized experience
 
 ## Getting Started
-1. Run the executable directly from any folder (no installation needed).
-2. Configure your preferences, including the Obsidian journal path.
-3. Start your Pomodoro sessions and track your work!
+1. Download and run the installer from the releases page
+2. Configure your Obsidian journal path in Settings
+3. Start your Pomodoro sessions and track your productivity!
 
 ## Development
 - Built with .NET 8.0 and WPF
-- All configuration and data files are stored locally in the app directory
+- Uses Clowd.Squirrel for reliable auto-update functionality
+- Settings stored in user profile for proper multi-user support
+
+## 🗑️ Uninstallation
+
+To uninstall Pomodoro4Obsidian:
+
+1. **Via Windows Settings** (Recommended):
+   - Settings → Apps → Installed apps → Search "Pomodoro" → Uninstall
+
+2. **Manual Removal**: 
+   - See [MANUAL_UNINSTALL.md](MANUAL_UNINSTALL.md) for detailed instructions
+   - Includes removing app files, settings, and shortcuts
 
 ---
 

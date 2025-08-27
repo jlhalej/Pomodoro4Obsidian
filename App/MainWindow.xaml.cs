@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Windows;
 
 namespace PomodoroForObsidian
@@ -7,6 +8,13 @@ namespace PomodoroForObsidian
         public MainWindow()
         {
             InitializeComponent();
+            SetVersionDisplay();
+        }
+
+        private void SetVersionDisplay()
+        {
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+            VersionLabel.Text = $"v{version?.Major}.{version?.Minor}.{version?.Build}";
         }
     }
 }

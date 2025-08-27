@@ -5,7 +5,7 @@
     <version>0.0.0.0</version> <!-- Replaced by MSBuild -->
     <title>Pomodoro4Obsidian</title>
     <authors>jlhalej</authors>
-    <description>A portable Windows desktop application that combines the Pomodoro Technique with seamless Obsidian integration.</description>
+    <description>A Windows desktop application that combines the Pomodoro Technique with seamless Obsidian integration and automatic updates.</description>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <copyright>Copyright 2025</copyright>
     <projectUrl>https://github.com/jlhalej/Pomodoro4Obsidian</projectUrl>

@@ -379,7 +379,7 @@ namespace PomodoroForObsidian
             if (_updateManager == null) return;
 
             CurrentVersionLabel.Text = _updateManager.GetCurrentVersion().ToString();
-            InstallationTypeLabel.Text = _updateManager.IsSquirrelInstalled() ? "Installer" : "Portable";
+            InstallationTypeLabel.Text = "Installer";
             UpdateStatusLabel.Text = "Ready to check";
 
             // Load auto-update setting from AppSettings

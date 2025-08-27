@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using System.Windows;
 using Squirrel;
 using Squirrel.Sources;
 
@@ -63,6 +64,9 @@ namespace PomodoroForObsidian
                         });
 
                         UpdateCompleted?.Invoke(this, updateInfo);
+
+                        // Restart the application to complete the update
+                        RestartApplication();
                         return true;
                     }
                     return false;
@@ -123,6 +127,45 @@ namespace PomodoroForObsidian
             {
                 Utils.LogDebug("UpdateManager", $"Error getting update info: {ex.Message}");
                 return (false, null, null);
+            }
+        }
+
+        /// <summary>
+        /// Restarts the application to complete updates
+        /// </summary>
+        private void RestartApplication()
+        {
+            try
+            {
+                // Use Squirrel's restart mechanism if available
+                if (IsSquirrelInstalled())
+                {
+                    var assembly = Assembly.GetEntryAssembly();
+                    if (assembly?.Location != null)
+                    {
+                        var assemblyDir = Path.GetDirectoryName(assembly.Location);
+                        var updateExe = Path.Combine(assemblyDir!, "..", "Update.exe");
+
+                        if (File.Exists(updateExe))
+                        {
+                            // Use Squirrel's Update.exe to restart properly
+                            System.Diagnostics.Process.Start(updateExe, $"--processStart \"{Path.GetFileName(assembly.Location)}\"");
+                            Application.Current.Shutdown();
+                            return;
+                        }
+                    }
+                }
+
+                // Fallback: standard restart
+                System.Diagnostics.Process.Start(Environment.ProcessPath ?? Application.ResourceAssembly.Location);
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                Utils.LogDebug("UpdateManager", $"Error restarting application: {ex.Message}");
+                // If restart fails, at least show a message to the user
+                MessageBox.Show("Update completed successfully. Please restart the application manually.",
+                              "Update Complete", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
     }

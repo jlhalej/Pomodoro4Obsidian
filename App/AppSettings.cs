@@ -38,50 +38,53 @@ namespace PomodoroForObsidian
         public DateTime? LastUpdateCheck { get; set; } = null;
 
         private static readonly string SettingsFileName = "settings.json";
-        private static readonly string SettingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);
+        private static readonly string AppDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PomodoroForObsidian");
+        private static readonly string SettingsFilePath = Path.Combine(AppDataFolder, SettingsFileName);
 
         public static AppSettings Load()
         {
+            // Ensure AppData directory exists
+            Directory.CreateDirectory(AppDataFolder);
+
+            // Check if settings file exists
             if (File.Exists(SettingsFilePath))
             {
-                // Only log if you want to debug settings file location, not every load
-                // Utils.LogDebug("AppSettings.Load", $"settings.json found at '{SettingsFilePath}'");
                 var json = File.ReadAllText(SettingsFilePath);
                 var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
                 settings.FirstRun = false;
                 return settings;
             }
-            else
-            {
-                Utils.LogDebug("AppSettings.Load", $"settings.json NOT found at '{SettingsFilePath}', creating with defaults.");
-                var settings = new AppSettings();
-                settings.Save();
-                Utils.LogDebug("AppSettings.Load", $"settings.json created at '{SettingsFilePath}' with default values.");
-                return settings;
-            }
+
+            // No existing settings found, create new ones
+            Utils.LogDebug("AppSettings.Load", $"settings.json NOT found at '{SettingsFilePath}', creating with defaults.");
+            var newSettings = new AppSettings();
+            newSettings.Save();
+            Utils.LogDebug("AppSettings.Load", $"settings.json created at '{SettingsFilePath}' with default values.");
+            return newSettings;
         }
 
         public static AppSettings Load(out bool isFirstRun)
         {
+            // Ensure AppData directory exists
+            Directory.CreateDirectory(AppDataFolder);
+
+            // Check if settings file exists
             if (File.Exists(SettingsFilePath))
             {
-                // Only log if you want to debug settings file location, not every load
-                // Utils.LogDebug("AppSettings.Load", $"settings.json found at '{SettingsFilePath}'");
                 var json = File.ReadAllText(SettingsFilePath);
                 var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
                 settings.FirstRun = false;
                 isFirstRun = false;
                 return settings;
             }
-            else
-            {
-                Utils.LogDebug("AppSettings.Load", $"settings.json NOT found at '{SettingsFilePath}', creating with defaults.");
-                var settings = new AppSettings();
-                settings.Save();
-                Utils.LogDebug("AppSettings.Load", $"settings.json created at '{SettingsFilePath}' with default values.");
-                isFirstRun = true;
-                return settings;
-            }
+
+            // No existing settings found, create new ones
+            Utils.LogDebug("AppSettings.Load", $"settings.json NOT found at '{SettingsFilePath}', creating with defaults.");
+            var newSettings = new AppSettings();
+            newSettings.Save();
+            Utils.LogDebug("AppSettings.Load", $"settings.json created at '{SettingsFilePath}' with default values.");
+            isFirstRun = true;
+            return newSettings;
         }
 
         public void Save()

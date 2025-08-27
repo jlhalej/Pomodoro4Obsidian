@@ -32,6 +32,9 @@ VaultTagsListDebug.json
 *.pdb
 *.cache
 
+# Internal development files
+NOT_GITHUB/
+
 # OS generated files
 .DS_Store
 .DS_Store?

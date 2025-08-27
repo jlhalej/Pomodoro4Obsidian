@@ -140,7 +140,7 @@
                         <TextBlock x:Name="CurrentVersionLabel" Grid.Row="0" Grid.Column="1" Text="1.0.7.0" Foreground="#d18be9" FontSize="16" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         
                         <TextBlock Text="Installation Type:" Grid.Row="1" Grid.Column="0" Foreground="White" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,10,0,0"/>
-                        <TextBlock x:Name="InstallationTypeLabel" Grid.Row="1" Grid.Column="1" Text="Portable" Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="10,10,0,0"/>
+                        <TextBlock x:Name="InstallationTypeLabel" Grid.Row="1" Grid.Column="1" Text="Installer" Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="10,10,0,0"/>
                         
                         <TextBlock Text="Update Status:" Grid.Row="2" Grid.Column="0" Foreground="White" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,10,0,0"/>
                         <TextBlock x:Name="UpdateStatusLabel" Grid.Row="2" Grid.Column="1" Text="Ready to check" Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="10,10,0,0"/>
