@@ -13,7 +13,7 @@ namespace PomodoroForObsidian
         private NotifyIcon _notifyIcon;
         private ToolStripMenuItem _miniWindowMenuItem;
         private ToolStripMenuItem _settingsMenuItem;
-        
+
         // Fields for blinking icon functionality
         private DispatcherTimer _blinkTimer;
         private bool _isBlinking = false;
@@ -35,7 +35,7 @@ namespace PomodoroForObsidian
         {
             Utils.LogDebug("TrayIcon", "Initializing TrayIcon");
             _notifyIcon = new NotifyIcon();
-            
+
             // Use custom tray icon
             try
             {
@@ -53,17 +53,17 @@ namespace PomodoroForObsidian
                 _notifyIcon.Icon = SystemIcons.Application;
                 _defaultIcon = SystemIcons.Application;
             }
-            
+
             _notifyIcon.Visible = true;
-            
+
             // Get the application version
             var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
             var versionString = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "unknown";
-            
+
             // Set tooltip with version
             _notifyIcon.Text = $"PomodoroForObsidian v{versionString}";
             Utils.LogDebug("TrayIcon", $"Set tray icon tooltip to: {_notifyIcon.Text}");
-            
+
             _notifyIcon.ContextMenuStrip = new ContextMenuStrip();
 
             _miniWindowMenuItem = new ToolStripMenuItem("Mini Mode") { CheckOnClick = true };
@@ -79,19 +79,19 @@ namespace PomodoroForObsidian
 
             // Add left-click event to show mini window
             _notifyIcon.MouseClick += NotifyIcon_MouseClick;
-            
+
             // Pre-create color icons
-            try 
+            try
             {
                 _primaryIcon = CreateColorIcon(PrimaryColor, true); // Purple with play icon
                 _secondaryIcon = CreateColorIcon(SecondaryColor, false); // Dark background
                 Utils.LogDebug("TrayIcon", "Pre-created color icons successfully");
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 Utils.LogDebug("TrayIcon", $"Error creating color icons: {ex.Message}");
             }
-            
+
             // Initialize timer on UI thread
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
@@ -103,21 +103,25 @@ namespace PomodoroForObsidian
             });
 
             // Subscribe to Pomodoro session events to control blinking
-            PomodoroSessionManager.Instance.ReverseCountdownStarted += (s, e) => {
+            PomodoroSessionManager.Instance.ReverseCountdownStarted += (s, e) =>
+            {
                 Utils.LogDebug("TrayIcon", "ReverseCountdownStarted event triggered, starting blinking");
                 StartBlinking();
             };
-            PomodoroSessionManager.Instance.Stopped += (s, e) => {
+            PomodoroSessionManager.Instance.Stopped += (s, e) =>
+            {
                 Utils.LogDebug("TrayIcon", "Stopped event triggered, stopping blinking");
                 StopBlinking();
             };
-            PomodoroSessionManager.Instance.Reset += (s, e) => {
+            PomodoroSessionManager.Instance.Reset += (s, e) =>
+            {
                 Utils.LogDebug("TrayIcon", "Reset event triggered, stopping blinking");
                 StopBlinking();
             };
-            
+
             // Start blinking immediately for debugging (on UI thread)
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() => {
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
                 Utils.LogDebug("TrayIcon", "Starting blinking immediately for debugging");
                 StartBlinking();
             }));
@@ -131,7 +135,7 @@ namespace PomodoroForObsidian
                 {
                     _isFirstColor = !_isFirstColor;
                     // Removed excessive logging here
-                    
+
                     // Force update on UI thread to be safe
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -148,7 +152,7 @@ namespace PomodoroForObsidian
         private Icon CreateColorIcon(Color backgroundColor, bool includePlayIcon)
         {
             Utils.LogDebug("TrayIcon", $"Creating {backgroundColor.Name} icon, includePlayIcon: {includePlayIcon}");
-            
+
             try
             {
                 // Create a bitmap with the specified color
@@ -158,7 +162,7 @@ namespace PomodoroForObsidian
                     {
                         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
                         g.Clear(backgroundColor);
-                        
+
                         // Draw a rounded rectangle for the icon background
                         using (System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath())
                         {
@@ -168,7 +172,7 @@ namespace PomodoroForObsidian
                                 g.DrawPath(borderPen, path);
                             }
                         }
-                        
+
                         // Draw a play triangle icon if requested
                         if (includePlayIcon)
                         {
@@ -179,7 +183,7 @@ namespace PomodoroForObsidian
                                 new System.Drawing.Point(5, 13),    // Bottom point
                                 new System.Drawing.Point(12, 8)     // Right point
                             };
-                            
+
                             // Fill with a contrasting color
                             using (SolidBrush brush = new SolidBrush(Color.White))
                             {
@@ -187,18 +191,18 @@ namespace PomodoroForObsidian
                             }
                         }
                     }
-                    
+
                     // Create icon from bitmap
                     IntPtr hIcon = bitmap.GetHicon();
                     Icon icon = Icon.FromHandle(hIcon);
-                    
+
                     // We need to clone the icon since FromHandle doesn't create a copy
                     // and the handle would be destroyed when this method exits
                     Icon clonedIcon = (Icon)icon.Clone();
-                    
+
                     // Clean up the handle
                     DestroyIcon(hIcon);
-                    
+
                     Utils.LogDebug("TrayIcon", "Created icon successfully");
                     return clonedIcon;
                 }
@@ -209,23 +213,23 @@ namespace PomodoroForObsidian
                 throw;
             }
         }
-        
+
         /// <summary>
         /// Starts blinking the tray icon between primary and secondary colors
         /// </summary>
         public void StartBlinking()
         {
             Utils.LogDebug("TrayIcon", "StartBlinking called");
-            
+
             try
             {
                 // Ensure we're on the UI thread
-                System.Windows.Application.Current.Dispatcher.Invoke(() => 
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     _isBlinking = true;
                     _isFirstColor = true;
                     _notifyIcon.Icon = _primaryIcon;
-                    
+
                     if (_blinkTimer != null)
                     {
                         _blinkTimer.Start();
@@ -242,29 +246,29 @@ namespace PomodoroForObsidian
                 Utils.LogDebug("TrayIcon", $"Error starting blinking: {ex.Message}");
             }
         }
-        
+
         /// <summary>
         /// Stops the blinking and restores the default icon
         /// </summary>
         public void StopBlinking()
         {
             Utils.LogDebug("TrayIcon", "StopBlinking called");
-            
+
             try
             {
                 // Ensure we're on the UI thread
-                System.Windows.Application.Current.Dispatcher.Invoke(() => 
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     if (_isBlinking)
                     {
                         _isBlinking = false;
-                        
+
                         if (_blinkTimer != null)
                         {
                             _blinkTimer.Stop();
                             Utils.LogDebug("TrayIcon", "Blinking timer stopped");
                         }
-                        
+
                         // Reset to the default icon
                         _notifyIcon.Icon = _defaultIcon;
                         Utils.LogDebug("TrayIcon", "Restored default icon");
@@ -283,7 +287,7 @@ namespace PomodoroForObsidian
             if (e.Button == MouseButtons.Left)
             {
                 ShowMiniWindow();
-                
+
                 // Stop blinking when user acknowledges by clicking on the icon
                 if (_isBlinking && PomodoroSessionManager.Instance.IsReverseCountdown)
                 {
@@ -426,7 +430,7 @@ namespace PomodoroForObsidian
         public void Dispose()
         {
             Utils.LogDebug("TrayIcon", "Disposing TrayIcon");
-            
+
             try
             {
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -438,7 +442,7 @@ namespace PomodoroForObsidian
             {
                 Utils.LogDebug("TrayIcon", $"Error stopping timer during disposal: {ex.Message}");
             }
-            
+
             _primaryIcon?.Dispose();
             _secondaryIcon?.Dispose();
             _defaultIcon?.Dispose();
