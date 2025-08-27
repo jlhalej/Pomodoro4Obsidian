@@ -57,10 +57,11 @@ namespace PomodoroForObsidian
             _notifyIcon.Visible = true;
             
             // Get the application version
-            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            var versionString = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "unknown";
             
             // Set tooltip with version
-            _notifyIcon.Text = $"PomodoroForObsidian v{version}";
+            _notifyIcon.Text = $"PomodoroForObsidian v{versionString}";
             Utils.LogDebug("TrayIcon", $"Set tray icon tooltip to: {_notifyIcon.Text}");
             
             _notifyIcon.ContextMenuStrip = new ContextMenuStrip();

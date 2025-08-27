@@ -378,7 +378,8 @@ namespace PomodoroForObsidian
         {
             if (_updateManager == null) return;
 
-            CurrentVersionLabel.Text = _updateManager.GetCurrentVersion().ToString();
+            var version = _updateManager.GetCurrentVersion();
+            CurrentVersionLabel.Text = $"{version.Major}.{version.Minor}.{version.Build}";
             InstallationTypeLabel.Text = "Installer";
             UpdateStatusLabel.Text = "Ready to check";
 
