@@ -33,7 +33,7 @@ VaultTagsListDebug.json
 *.cache
 
 # Internal development files
-NOT_GITHUB/
+_private_notes/
 
 # OS generated files
 .DS_Store
