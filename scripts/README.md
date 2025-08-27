@@ -46,6 +46,8 @@ Validates the update system implementation.
 
 ## Typical Workflow
 
+📋 **For detailed step-by-step instructions, see [RELEASE_GUIDE.md](RELEASE_GUIDE.md)**
+
 1. Update version in `App/PomodoroForObsidian.csproj`
 2. Run build script: `.\build-squirrel-release.ps1`
 3. Test functionality: `.\test-update-functionality.ps1`

@@ -186,6 +186,12 @@ To uninstall Pomodoro4Obsidian:
    - See [MANUAL_UNINSTALL.md](MANUAL_UNINSTALL.md) for detailed instructions
    - Includes removing app files, settings, and shortcuts
 
+## 🔧 Development & Releases
+
+- **Development Setup**: See [DEVELOPMENT.md](DEVELOPMENT.md)
+- **Release Process**: See [scripts/RELEASE_GUIDE.md](scripts/RELEASE_GUIDE.md)
+- **Build Scripts**: See [scripts/README.md](scripts/README.md)
+
 ---
 
 
