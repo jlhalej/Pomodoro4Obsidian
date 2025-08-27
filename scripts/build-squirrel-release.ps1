@@ -2,9 +2,28 @@
 # This script builds the application and creates a Squirrel-compatible release
 
 param(
-    [string]$Version = "1.0.8",
+    [string]$Version = "",
     [string]$Configuration = "Release"
 )
+
+# Set paths
+$AppDir = Join-Path (Split-Path $PSScriptRoot -Parent) "App"
+$ProjectFile = Join-Path $AppDir "PomodoroForObsidian.csproj"
+
+# Auto-detect version from project file if not provided
+if ([string]::IsNullOrEmpty($Version)) {
+    if (Test-Path $ProjectFile) {
+        $projectContent = Get-Content $ProjectFile -Raw
+        if ($projectContent -match '<Version>([^<]+)</Version>') {
+            $Version = $matches[1]
+            Write-Host "📋 Auto-detected version from project file: $Version" -ForegroundColor Cyan
+        } else {
+            throw "Could not detect version from project file: $ProjectFile"
+        }
+    } else {
+        throw "Project file not found: $ProjectFile"
+    }
+}
 
 Write-Host "🚀 Building Squirrel Release for Pomodoro4Obsidian v$Version" -ForegroundColor Green
 
