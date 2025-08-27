@@ -16,6 +16,9 @@
             <Button x:Name="TaskbarButton" Content="Taskbar" Background="Transparent" Foreground="White" BorderBrush="Transparent" 
                     FontSize="15" Height="40" Margin="0,0,0,10" HorizontalContentAlignment="Left" Padding="30,0,0,0"
                     Click="TaskbarButton_Click"/>
+            <Button x:Name="UpdatesButton" Content="Updates" Background="Transparent" Foreground="White" BorderBrush="Transparent" 
+                    FontSize="15" Height="40" Margin="0,0,0,10" HorizontalContentAlignment="Left" Padding="30,0,0,0"
+                    Click="UpdatesButton_Click"/>
         </StackPanel>
         
         <!-- Main Content -->
@@ -111,6 +114,77 @@
                     </Grid>
                     
                     <!-- Save/Cancel Buttons for Taskbar panel -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,40,0,0">
+                        <Button Content="Cancel" Width="90" Height="32" Background="#2d223a" Foreground="White" BorderBrush="#2d223a" FontSize="15" Margin="0,0,10,0" Click="CancelButton_Click"/>
+                        <Button Content="Save" Width="90" Height="32" Background="#d18be9" Foreground="White" BorderBrush="#d18be9" FontSize="15" Click="SaveButton_Click"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Updates Settings Panel -->
+                <StackPanel x:Name="UpdatesPanel" Visibility="Collapsed" Margin="40,30,40,30">
+                    <TextBlock Text="Application Updates" Foreground="#d18be9" FontSize="24" FontWeight="Bold" Margin="0,0,0,30"/>
+                    
+                    <!-- Current Version Info -->
+                    <Grid Margin="0,0,0,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Text="Current Version:" Grid.Row="0" Grid.Column="0" Foreground="White" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="CurrentVersionLabel" Grid.Row="0" Grid.Column="1" Text="1.0.7.0" Foreground="#d18be9" FontSize="16" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        
+                        <TextBlock Text="Installation Type:" Grid.Row="1" Grid.Column="0" Foreground="White" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="InstallationTypeLabel" Grid.Row="1" Grid.Column="1" Text="Portable" Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="10,10,0,0"/>
+                        
+                        <TextBlock Text="Update Status:" Grid.Row="2" Grid.Column="0" Foreground="White" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,10,0,0"/>
+                        <TextBlock x:Name="UpdateStatusLabel" Grid.Row="2" Grid.Column="1" Text="Ready to check" Foreground="White" FontSize="16" VerticalAlignment="Center" Margin="10,10,0,0"/>
+                    </Grid>
+                    
+                    <!-- Update Settings -->
+                    <TextBlock Text="Update Settings" Foreground="#d18be9" FontSize="20" FontWeight="Bold" Margin="0,20,0,20"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20" VerticalAlignment="Center">
+                        <TextBlock Text="Automatically check for updates:" Foreground="White" FontSize="16" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="AutoUpdateCheckBox" Width="20" Height="20" VerticalAlignment="Center" IsChecked="True"/>
+                    </StackPanel>
+                    
+                    <!-- Manual Update Check -->
+                    <TextBlock Text="Manual Update Check" Foreground="#d18be9" FontSize="20" FontWeight="Bold" Margin="0,20,0,20"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                        <Button x:Name="CheckForUpdatesButton" Content="Check for Updates" Width="150" Height="35" 
+                                Background="#d18be9" Foreground="White" BorderBrush="#d18be9" FontSize="15" 
+                                Click="CheckForUpdatesButton_Click" Margin="0,0,10,0"/>
+                        <TextBlock x:Name="UpdateCheckStatusLabel" Text="" Foreground="White" FontSize="14" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <!-- Update Progress -->
+                    <StackPanel x:Name="UpdateProgressPanel" Visibility="Collapsed" Margin="0,10,0,20">
+                        <TextBlock Text="Downloading update..." Foreground="#d18be9" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <ProgressBar x:Name="UpdateProgressBar" Height="20" Background="#2d223a" Foreground="#d18be9" BorderBrush="#d18be9" Value="0" Maximum="100"/>
+                        <TextBlock x:Name="UpdateProgressLabel" Text="0%" Foreground="White" FontSize="14" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    
+                    <!-- Update Information -->
+                    <StackPanel x:Name="UpdateInfoPanel" Visibility="Collapsed" Margin="0,10,0,20">
+                        <TextBlock Text="Update Available" Foreground="#d18be9" FontSize="18" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock x:Name="NewVersionLabel" Text="Version: " Foreground="White" FontSize="16" Margin="0,0,0,5"/>
+                        <TextBlock x:Name="UpdateNotesLabel" Text="Release notes: " Foreground="White" FontSize="14" TextWrapping="Wrap" Margin="0,0,0,15"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="DownloadUpdateButton" Content="Download and Install" Width="150" Height="35" 
+                                    Background="#d18be9" Foreground="White" BorderBrush="#d18be9" FontSize="15" 
+                                    Click="DownloadUpdateButton_Click" Margin="0,0,10,0"/>
+                            <Button x:Name="SkipUpdateButton" Content="Skip This Update" Width="130" Height="35" 
+                                    Background="#2d223a" Foreground="White" BorderBrush="#2d223a" FontSize="15" 
+                                    Click="SkipUpdateButton_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                    
+                    <!-- Save/Cancel Buttons for Updates panel -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,40,0,0">
                         <Button Content="Cancel" Width="90" Height="32" Background="#2d223a" Foreground="White" BorderBrush="#2d223a" FontSize="15" Margin="0,0,10,0" Click="CancelButton_Click"/>
                         <Button Content="Save" Width="90" Height="32" Background="#d18be9" Foreground="White" BorderBrush="#d18be9" FontSize="15" Click="SaveButton_Click"/>

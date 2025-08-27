@@ -25,13 +25,17 @@ namespace PomodoroForObsidian
         public bool DebugLogEnabled { get; set; } = false;
         public int MaximumSessionLength { get; set; } = 120;
         public string ObsidianVaultPath { get; set; } = string.Empty;
-        
+
         // Taskbar management settings
         public bool TaskbarModificationEnabled { get; set; } = false;
         public int TaskbarNotchWidth { get; set; } = 340;
         public int TaskbarNotchHeight { get; set; } = 36;
         public int TaskbarNotchPosition { get; set; } = 0;
         public int TaskbarCornerRadius { get; set; } = 6;
+
+        // Auto-update settings
+        public bool AutoCheckForUpdates { get; set; } = true;
+        public DateTime? LastUpdateCheck { get; set; } = null;
 
         private static readonly string SettingsFileName = "settings.json";
         private static readonly string SettingsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SettingsFileName);

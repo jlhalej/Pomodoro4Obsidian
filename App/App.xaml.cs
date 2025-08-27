@@ -5,6 +5,7 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using Squirrel;
 using PomodoroForObsidian; // Add this using directive
 
 namespace PomodoroForObsidian
@@ -19,11 +20,18 @@ namespace PomodoroForObsidian
         private AppSettings? _settings;
         private MiniWindow? _miniWindow;
         private TaskbarManager? _taskbarManager;
+        private UpdateManager? _updateManager;
 
         public static bool IsShuttingDown { get; private set; } = false;
 
         protected override void OnStartup(StartupEventArgs e)
-        {            
+        {
+            // Handle Squirrel events first, before any UI initialization
+            SquirrelAwareApp.HandleEvents(
+                onInitialInstall: OnAppInstall,
+                onAppUpdate: OnAppUpdate,
+                onAppUninstall: OnAppUninstall);
+
             base.OnStartup(e);
             this.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             _trayIcon = new TrayIcon();
@@ -35,7 +43,7 @@ namespace PomodoroForObsidian
 
             // Initialize the taskbar manager
             _taskbarManager = new TaskbarManager();
-            
+
             // Configure from settings
             if (_settings != null && _taskbarManager != null)
             {
@@ -44,7 +52,7 @@ namespace PomodoroForObsidian
                 _taskbarManager.TaskbarNotchHeight = _settings.TaskbarNotchHeight;
                 _taskbarManager.TaskbarNotchPosition = _settings.TaskbarNotchPosition;
                 _taskbarManager.CornerRadius = _settings.TaskbarCornerRadius;
-                
+
                 // Apply taskbar modification if enabled
                 if (_settings.TaskbarModificationEnabled)
                 {
@@ -54,7 +62,8 @@ namespace PomodoroForObsidian
             }
 
             // Test blinking functionality after short delay
-            Dispatcher.BeginInvoke(new Action(() => {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
                 Utils.LogDebug("App", "Testing tray icon blinking on startup");
                 TestTrayIconBlinking();
             }), System.Windows.Threading.DispatcherPriority.Background);
@@ -135,7 +144,7 @@ namespace PomodoroForObsidian
             {
                 _miniWindow = new MiniWindow(_settings);
                 WireMiniWindowEvents();
-                
+
                 // Position the mini window if taskbar modification is enabled
                 if (_settings.TaskbarModificationEnabled && _taskbarManager != null)
                 {
@@ -144,14 +153,17 @@ namespace PomodoroForObsidian
                     _miniWindow.Left = idealPosition.X;
                     _miniWindow.Top = idealPosition.Y;
                 }
-                
+
                 _miniWindow.Show();
                 _settings.MiniModeActive = true;
                 _settings.FirstRun = false;
                 _settings.Save();
             }
+
+            // Initialize UpdateManager and check for updates in background
+            InitializeAutoUpdateAsync();
         }
-        
+
         private async void TestTrayIconBlinking()
         {
             try
@@ -159,13 +171,13 @@ namespace PomodoroForObsidian
                 // Skip test blinking if debug logging is disabled
                 if (!SettingsWindow.DebugLogEnabled)
                     return;
-                    
+
                 Utils.LogDebug("App", "Starting tray icon blinking test");
                 _trayIcon?.StartBlinking();
-                
+
                 // Stop blinking after 3 seconds (reduced from 5)
                 await Task.Delay(3000);
-                
+
                 Utils.LogDebug("App", "Stopping tray icon blinking test");
                 _trayIcon?.StopBlinking();
             }
@@ -179,7 +191,7 @@ namespace PomodoroForObsidian
         public void SetTrayIconBlinking(bool blinking)
         {
             Utils.LogDebug("App", $"SetTrayIconBlinking called with blinking={blinking}");
-            
+
             if (_trayIcon != null)
             {
                 if (blinking)
@@ -237,14 +249,14 @@ namespace PomodoroForObsidian
         public void SetTaskbarModification(bool enabled)
         {
             if (_taskbarManager == null || _settings == null) return;
-            
+
             _taskbarManager.TaskbarModificationEnabled = enabled;
             _settings.TaskbarModificationEnabled = enabled;
-            
+
             if (enabled)
             {
                 _taskbarManager.CreateNotch();
-                
+
                 // Reposition mini window if it's open
                 if (_miniWindow != null && _miniWindow.IsVisible)
                 {
@@ -257,10 +269,10 @@ namespace PomodoroForObsidian
             {
                 _taskbarManager.RestoreTaskbar();
             }
-            
+
             // Save settings
             _settings.Save();
-            
+
             Utils.LogDebug("App", $"Taskbar modification set to {enabled}");
         }
 
@@ -270,21 +282,21 @@ namespace PomodoroForObsidian
         public void UpdateTaskbarNotch(int width, int height, int position)
         {
             if (_taskbarManager == null || _settings == null) return;
-            
+
             _taskbarManager.TaskbarNotchWidth = width;
             _taskbarManager.TaskbarNotchHeight = height;
             _taskbarManager.TaskbarNotchPosition = position;
-            
+
             _settings.TaskbarNotchWidth = width;
             _settings.TaskbarNotchHeight = height;
             _settings.TaskbarNotchPosition = position;
-            
+
             // If enabled, recreate the notch with new settings
             if (_taskbarManager.TaskbarModificationEnabled)
             {
                 _taskbarManager.RestoreTaskbar();
                 _taskbarManager.CreateNotch();
-                
+
                 // Reposition mini window if it's open
                 if (_miniWindow != null && _miniWindow.IsVisible)
                 {
@@ -293,10 +305,10 @@ namespace PomodoroForObsidian
                     _miniWindow.Top = idealPosition.Y;
                 }
             }
-            
+
             // Save settings
             _settings.Save();
-            
+
             Utils.LogDebug("App", $"Taskbar notch updated: width={width}, height={height}, position={position}");
         }
 
@@ -306,13 +318,13 @@ namespace PomodoroForObsidian
             {
                 Utils.LogDebug("App", "Application exiting (OnExit)");
             }
-            
+
             // Restore the taskbar if it was modified
             if (_taskbarManager != null && _taskbarManager.TaskbarModificationEnabled)
             {
                 _taskbarManager.RestoreTaskbar();
             }
-            
+
             _trayIcon?.Dispose();
             base.OnExit(e);
         }
@@ -324,15 +336,138 @@ namespace PomodoroForObsidian
             {
                 Utils.LogDebug("App", "Application exiting via tray (ExitAppExplicit)");
             }
-            
+
             // Restore the taskbar if it was modified
             if (_taskbarManager != null && _taskbarManager.TaskbarModificationEnabled)
             {
                 _taskbarManager.RestoreTaskbar();
             }
-            
+
             // Do NOT save settings here to avoid overwriting with defaults on exit
             this.Shutdown();
         }
+
+        #region Auto-Update Methods
+
+        private async void InitializeAutoUpdateAsync()
+        {
+            try
+            {
+                _updateManager = new UpdateManager("https://github.com/jlhalej/Pomodoro4Obsidian");
+
+                // Only check for updates if user has enabled it and it's been more than 24 hours
+                if (_settings?.AutoCheckForUpdates == true)
+                {
+                    var lastCheck = _settings.LastUpdateCheck;
+                    var shouldCheck = lastCheck == null || (DateTime.Now - lastCheck.Value).TotalHours >= 24;
+
+                    if (shouldCheck)
+                    {
+                        await CheckForUpdatesInBackgroundAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.LogDebug("App", $"Failed to initialize auto-update: {ex.Message}");
+            }
+        }
+
+        private async Task CheckForUpdatesInBackgroundAsync()
+        {
+            try
+            {
+                if (_updateManager == null || _settings == null) return;
+
+                Utils.LogDebug("App", "Checking for updates in background...");
+
+                var updateInfo = await _updateManager.CheckForUpdatesAsync();
+                _settings.LastUpdateCheck = DateTime.Now;
+                _settings.Save();
+
+                if (updateInfo != null && updateInfo.ReleasesToApply.Any())
+                {
+                    Utils.LogDebug("App", $"Update available: {updateInfo.FutureReleaseEntry?.Version}");
+
+                    // Show a notification that an update is available
+                    var result = MessageBox.Show(
+                        $"A new version ({updateInfo.FutureReleaseEntry?.Version}) is available!\n\nWould you like to download and install it now?",
+                        "Update Available",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Information);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        await DownloadAndApplyUpdateAsync();
+                    }
+                }
+                else
+                {
+                    Utils.LogDebug("App", "No updates available");
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.LogDebug("App", $"Background update check failed: {ex.Message}");
+            }
+        }
+
+        private async Task DownloadAndApplyUpdateAsync()
+        {
+            try
+            {
+                if (_updateManager == null) return;
+
+                Utils.LogDebug("App", "Downloading and applying update...");
+
+                var success = await _updateManager.DownloadAndApplyUpdatesAsync();
+                if (success)
+                {
+                    Utils.LogDebug("App", "Update completed successfully");
+
+                    MessageBox.Show(
+                        "Update downloaded successfully! The application will restart to complete the installation.",
+                        "Update Ready",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
+                    // Restart the application
+                    System.Diagnostics.Process.Start(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "");
+                    ExitAppExplicit();
+                }
+                else
+                {
+                    Utils.LogDebug("App", "Update failed");
+                    MessageBox.Show("Failed to download or apply the update. Please try again later.",
+                                  "Update Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.LogDebug("App", $"Update download/apply failed: {ex.Message}");
+                MessageBox.Show($"Update failed: {ex.Message}", "Update Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Squirrel Event Handlers
+
+        private static void OnAppInstall(SemanticVersion version, IAppTools tools)
+        {
+            tools.CreateShortcutForThisExe(ShortcutLocation.StartMenu | ShortcutLocation.Desktop);
+        }
+
+        private static void OnAppUpdate(SemanticVersion version, IAppTools tools)
+        {
+            tools.CreateShortcutForThisExe(ShortcutLocation.StartMenu | ShortcutLocation.Desktop);
+        }
+
+        private static void OnAppUninstall(SemanticVersion version, IAppTools tools)
+        {
+            tools.RemoveShortcutForThisExe(ShortcutLocation.StartMenu | ShortcutLocation.Desktop);
+        }
+
+        #endregion
     }
 }

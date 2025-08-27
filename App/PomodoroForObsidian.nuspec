@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>PomodoroForObsidian</id>
+    <version>0.0.0.0</version> <!-- Replaced by MSBuild -->
+    <title>Pomodoro4Obsidian</title>
+    <authors>jlhalej</authors>
+    <description>A portable Windows desktop application that combines the Pomodoro Technique with seamless Obsidian integration.</description>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <copyright>Copyright 2025</copyright>
+    <projectUrl>https://github.com/jlhalej/Pomodoro4Obsidian</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/jlhalej/Pomodoro4Obsidian/main/App/timer16.ico</iconUrl>
+    <repository type="git" url="https://github.com/jlhalej/Pomodoro4Obsidian" />
+    <dependencies />
+  </metadata>
+  <files>
+    <!-- Clowd.Squirrel expects files in lib\net8.0-windows\ -->
+    <file src="*.*" target="lib\net8.0-windows\" exclude="*.pdb;*.nupkg;*.vshost.*;*.xml"/>
+  </files>
+</package>
