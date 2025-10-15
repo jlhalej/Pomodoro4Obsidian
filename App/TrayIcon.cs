@@ -11,17 +11,17 @@ namespace PomodoroForObsidian
 {
     public class TrayIcon : IDisposable
     {
-        private NotifyIcon _notifyIcon;
-        private ToolStripMenuItem _miniWindowMenuItem;
-        private ToolStripMenuItem _settingsMenuItem;
+        private NotifyIcon _notifyIcon = new NotifyIcon();
+        private ToolStripMenuItem _miniWindowMenuItem = new ToolStripMenuItem();
+        private ToolStripMenuItem _settingsMenuItem = new ToolStripMenuItem();
 
         // Fields for blinking icon functionality
-        private DispatcherTimer _blinkTimer;
+        private DispatcherTimer? _blinkTimer;
         private bool _isBlinking = false;
         private bool _isFirstColor = true;
-        private Icon _defaultIcon;
-        private Icon _primaryIcon;
-        private Icon _secondaryIcon;
+        private Icon? _defaultIcon;
+        private Icon? _primaryIcon;
+        private Icon? _secondaryIcon;
         
         private PomodoroSessionManager _pomodoroSessionManager;
         private AppSettings _settings;
@@ -41,7 +41,6 @@ namespace PomodoroForObsidian
             _autoCompleteManager = autoCompleteManager;
 
             Utils.LogDebug("TrayIcon", "Initializing TrayIcon");
-            _notifyIcon = new NotifyIcon();
 
             // Use custom tray icon
             try

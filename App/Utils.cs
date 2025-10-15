@@ -54,7 +54,7 @@ namespace PomodoroForObsidian
             {
                 File.AppendAllText(logFile, line + Environment.NewLine);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Optionally, ignore or show a message
             }

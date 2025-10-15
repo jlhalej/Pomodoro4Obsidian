@@ -12,7 +12,7 @@ namespace PomodoroForObsidian.Persistence
     public class JsonTaskHistoryRepository : ITaskHistoryRepository
     {
         private readonly string _dataFilePath;
-        private List<TaskHistoryEntry> _taskHistory;
+        private List<TaskHistoryEntry> _taskHistory = new List<TaskHistoryEntry>();
 
         public JsonTaskHistoryRepository()
         {

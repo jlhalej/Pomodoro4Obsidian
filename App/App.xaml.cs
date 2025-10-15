@@ -20,9 +20,9 @@ namespace PomodoroForObsidian
         private TaskbarManager? _taskbarManager;
         private UpdateManager? _updateManager;
 
-        private ITaskHistoryRepository _taskHistoryRepository;
-        private AutoCompleteManager _autoCompleteManager;
-        private PomodoroSessionManager _pomodoroSessionManager;
+        private ITaskHistoryRepository _taskHistoryRepository = new JsonTaskHistoryRepository();
+        private AutoCompleteManager? _autoCompleteManager;
+        private PomodoroSessionManager? _pomodoroSessionManager;
 
         public static bool IsShuttingDown { get; private set; } = false;
 
@@ -39,7 +39,6 @@ namespace PomodoroForObsidian
             bool isFirstRun;
             _settings = AppSettings.Load(out isFirstRun);
 
-            _taskHistoryRepository = new JsonTaskHistoryRepository();
             await _taskHistoryRepository.InitializeAsync();
             await _taskHistoryRepository.CleanupOldEntriesAsync();
             _autoCompleteManager = new AutoCompleteManager(_taskHistoryRepository);
@@ -77,8 +76,8 @@ namespace PomodoroForObsidian
                 _settings = AppSettings.Load();
             }
 
-            bool journalSet = !string.IsNullOrWhiteSpace(_settings.ObsidianJournalPath);
-            bool vaultSet = !string.IsNullOrWhiteSpace(_settings.ObsidianVaultPath);
+            bool journalSet = !string.IsNullOrWhiteSpace(_settings?.ObsidianJournalPath);
+            bool vaultSet = !string.IsNullOrWhiteSpace(_settings?.ObsidianVaultPath);
             if (!journalSet || !vaultSet)
             {
                 Utils.MessageBoxNotification("Please set both the Obsidian Journal Path and Vault Path in Preferences.");
@@ -87,7 +86,7 @@ namespace PomodoroForObsidian
                 _settings = AppSettings.Load();
             }
 
-            SettingsWindow.DebugLogEnabled = _settings.DebugLogEnabled;
+            SettingsWindow.DebugLogEnabled = _settings?.DebugLogEnabled ?? false;
 
             if (SettingsWindow.DebugLogEnabled)
             {
@@ -98,24 +97,30 @@ namespace PomodoroForObsidian
                 Utils.LogDebug("App", $"Build version: {version}");
             }
 
-            _pomodoroSessionManager.GetFileListFromVault();
+            _pomodoroSessionManager?.GetFileListFromVault();
 
-            if (_settings.MiniModeActive || _settings.FirstRun)
+            if (_settings?.MiniModeActive == true || _settings?.FirstRun == true)
             {
-                _miniWindow = new MiniWindow(_settings, _autoCompleteManager, _pomodoroSessionManager);
-                WireMiniWindowEvents();
-
-                if (_settings.TaskbarModificationEnabled && _taskbarManager != null)
+                if (_settings != null && _autoCompleteManager != null && _pomodoroSessionManager != null)
                 {
-                    var idealPosition = _taskbarManager.GetIdealMiniWindowPosition(_miniWindow.Width, _miniWindow.Height);
-                    _miniWindow.Left = idealPosition.X;
-                    _miniWindow.Top = idealPosition.Y;
-                }
+                    _miniWindow = new MiniWindow(_settings, _autoCompleteManager, _pomodoroSessionManager);
+                    WireMiniWindowEvents();
 
-                _miniWindow.Show();
-                _settings.MiniModeActive = true;
-                _settings.FirstRun = false;
-                _settings.Save();
+                    if (_settings.TaskbarModificationEnabled && _taskbarManager != null && _miniWindow != null)
+                    {
+                        var idealPosition = _taskbarManager.GetIdealMiniWindowPosition(_miniWindow.Width, _miniWindow.Height);
+                        _miniWindow.Left = idealPosition.X;
+                        _miniWindow.Top = idealPosition.Y;
+                    }
+
+                    _miniWindow.Show();
+                    if (_settings != null)
+                    {
+                        _settings.MiniModeActive = true;
+                        _settings.FirstRun = false;
+                        _settings.Save();
+                    }
+                }
             }
 
             InitializeAutoUpdateAsync();
@@ -134,16 +139,19 @@ namespace PomodoroForObsidian
             if (_miniWindow == null) return;
 
             _miniWindow.TimerStartStopClicked += (s, e) => { };
-            _miniWindow.TimerResetRequested += (s, e) => _pomodoroSessionManager.ResetTimer();
+            _miniWindow.TimerResetRequested += (s, e) => _pomodoroSessionManager?.ResetTimer();
 
-            _pomodoroSessionManager.Tick += (s, timeLeft) => _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimer(_pomodoroSessionManager.TimeLeft));
-            _pomodoroSessionManager.Started += (s, e) => _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimerRunning(true));
-            _pomodoroSessionManager.Stopped += (s, e) => _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimerRunning(false));
-            _pomodoroSessionManager.Reset += (s, e) =>
+            if (_pomodoroSessionManager != null)
             {
-                _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimer(_pomodoroSessionManager.TimeLeft));
-                _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimerRunning(false));
-            };
+                _pomodoroSessionManager.Tick += (s, timeLeft) => _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimer(_pomodoroSessionManager.TimeLeft));
+                _pomodoroSessionManager.Started += (s, e) => _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimerRunning(true));
+                _pomodoroSessionManager.Stopped += (s, e) => _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimerRunning(false));
+                _pomodoroSessionManager.Reset += (s, e) =>
+                {
+                    _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimer(_pomodoroSessionManager.TimeLeft));
+                    _miniWindow.Dispatcher.Invoke(() => _miniWindow.SetTimerRunning(false));
+                };
+            }
         }
 
         protected override void OnExit(ExitEventArgs e)
@@ -227,7 +235,12 @@ namespace PomodoroForObsidian
                         "Update Ready",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
-                    System.Diagnostics.Process.Start(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "");
+                    var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                    var fileName = currentProcess.MainModule?.FileName;
+                    if (!string.IsNullOrEmpty(fileName))
+                    {
+                        System.Diagnostics.Process.Start(fileName);
+                    }
                     ExitAppExplicit();
                 }
                 else

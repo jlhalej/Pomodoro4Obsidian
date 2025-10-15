@@ -14,6 +14,9 @@ namespace PomodoroForObsidian
         public bool CreateNew { get; private set; } = false;
         private List<string> _allTags;
 
+        // Event to notify when a tag is selected
+        public event EventHandler<TagSelectedEventArgs>? TagSelected;
+
         public TagPickerWindow()
         {
             InitializeComponent();
@@ -71,7 +74,8 @@ namespace PomodoroForObsidian
             if (TagList.SelectedItem != null)
             {
                 SelectedTag = TagList.SelectedItem.ToString();
-                DialogResult = true;
+                OnTagSelected(SelectedTag, false);
+                this.Close();
             }
         }
 
@@ -80,7 +84,8 @@ namespace PomodoroForObsidian
             if (e.Key == Key.Enter && TagList.SelectedItem != null)
             {
                 SelectedTag = TagList.SelectedItem.ToString();
-                DialogResult = true;
+                OnTagSelected(SelectedTag, false);
+                this.Close();
             }
         }
 
@@ -89,19 +94,20 @@ namespace PomodoroForObsidian
             if (e.Key == Key.Enter && TagList.Items.Count > 0)
             {
                 SelectedTag = TagList.Items[0].ToString();
-                DialogResult = true;
+                OnTagSelected(SelectedTag, false);
+                this.Close();
             }
             else if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
                 // Create new tag
                 SelectedTag = SearchBox.Text.Trim();
                 CreateNew = true;
-                DialogResult = true;
+                OnTagSelected(SelectedTag, true);
+                this.Close();
             }
             else if (e.Key == Key.Escape)
             {
-                DialogResult = false;
-                Close();
+                this.Close();
             }
         }
 
@@ -116,6 +122,25 @@ namespace PomodoroForObsidian
                 item?.Focus();
                 e.Handled = true;
             }
+        }
+
+        // Method to raise the TagSelected event
+        protected virtual void OnTagSelected(string tag, bool isNew)
+        {
+            TagSelected?.Invoke(this, new TagSelectedEventArgs(tag, isNew));
+        }
+    }
+
+    // Custom event arguments for tag selection
+    public class TagSelectedEventArgs : EventArgs
+    {
+        public string Tag { get; }
+        public bool IsNew { get; }
+
+        public TagSelectedEventArgs(string tag, bool isNew)
+        {
+            Tag = tag;
+            IsNew = isNew;
         }
     }
 }

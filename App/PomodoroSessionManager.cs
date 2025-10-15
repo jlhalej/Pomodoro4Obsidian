@@ -14,7 +14,7 @@ namespace PomodoroForObsidian
     public class PomodoroSessionManager
     {
         private readonly ITaskHistoryRepository _taskHistoryRepository;
-        private DispatcherTimer _timer;
+        private DispatcherTimer _timer = new DispatcherTimer();
         private TimeSpan _timeLeft;
         private bool _isRunning;
         private int _pomodoroLength;
@@ -31,7 +31,7 @@ namespace PomodoroForObsidian
         private string? _lastTask;
         private string? _lastProject;
 
-        private DispatcherTimer _negativeTimer;
+        private DispatcherTimer? _negativeTimer;
         private TimeSpan _negativeTimeElapsed = TimeSpan.Zero;
         public event EventHandler<TimeSpan>? NegativeTimerTick;
 
@@ -39,7 +39,6 @@ namespace PomodoroForObsidian
         {
             _taskHistoryRepository = taskHistoryRepository;
             _pomodoroLength = 25;
-            _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
             ResetTimer();
@@ -297,7 +296,7 @@ namespace PomodoroForObsidian
             string header = string.IsNullOrWhiteSpace(settings.Header) ? "# Pomodoro Sessions" : settings.Header;
             string task = settings.CurrentSessionInputField ?? string.Empty;
             string project = string.Empty;
-            string timestamp = settings.CurrentSessionTimestamp;
+            string timestamp = settings.CurrentSessionTimestamp ?? string.Empty;
             string entry = $"- {start:HH:mm} - {end:HH:mm} {task} {project}";
 
             Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Preparing to log stopped session. Start: {start:HH:mm}, End: {end:HH:mm}, Task: '{task}', JournalFile: {journalFile}, Timestamp: {timestamp}");

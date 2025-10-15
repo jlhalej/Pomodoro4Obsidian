@@ -101,7 +101,6 @@ namespace PomodoroForObsidian
         // Class properties
         private IntPtr _taskbarHandle;
         private RECT _originalTaskbarRect;
-        private IntPtr _originalRegion;
         private bool _isModified = false;
 
         // Settings for taskbar modification
@@ -114,13 +113,19 @@ namespace PomodoroForObsidian
         public TaskbarManager()
         {
             // Find the taskbar window
-            _taskbarHandle = FindWindow("Shell_TrayWnd", null);
+            _taskbarHandle = FindWindow("Shell_TrayWnd", string.Empty);
             
             if (_taskbarHandle != IntPtr.Zero)
             {
                 // Store the original taskbar rectangle
-                GetWindowRect(_taskbarHandle, out _originalTaskbarRect);
-                Utils.LogDebug("TaskbarManager", $"Found taskbar at: {_originalTaskbarRect.Left}, {_originalTaskbarRect.Top}, {_originalTaskbarRect.Right}, {_originalTaskbarRect.Bottom}");
+                if (GetWindowRect(_taskbarHandle, out _originalTaskbarRect))
+                {
+                    Utils.LogDebug("TaskbarManager", $"Found taskbar at: {_originalTaskbarRect.Left}, {_originalTaskbarRect.Top}, {_originalTaskbarRect.Right}, {_originalTaskbarRect.Bottom}");
+                }
+                else
+                {
+                    Utils.LogDebug("TaskbarManager", "Found taskbar but could not get window rect");
+                }
             }
             else
             {

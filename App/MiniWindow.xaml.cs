@@ -22,6 +22,9 @@ namespace PomodoroForObsidian
         private AutoCompleteManager _autoCompleteManager;
         private DispatcherTimer _debounceTimer;
         private PomodoroSessionManager _pomodoroSessionManager;
+        private TagPickerWindow? _tagPickerWindow;
+        private bool _isTagModeActive = false;
+        private int _tagStartPosition = -1;
 
         // Win32 interop for resizing
         [DllImport("user32.dll")]
@@ -233,8 +236,94 @@ namespace PomodoroForObsidian
 
         private void MiniTaskInput_TextChanged(object sender, TextChangedEventArgs e)
         {
+            // Check for "#" character to trigger tag picker
+            var textBox = sender as TextBox;
+            if (textBox != null)
+            {
+                var text = textBox.Text;
+                var caretPos = textBox.CaretIndex;
+                
+                // Check if we're typing a "#" character
+                if (caretPos > 0 && text[caretPos - 1] == '#' && !_isTagModeActive)
+                {
+                    // Activate tag mode
+                    ActivateTagMode(textBox, caretPos - 1);
+                    return;
+                }
+                // Check if we're in tag mode and the "#" was deleted
+                else if (_isTagModeActive && caretPos <= _tagStartPosition && caretPos > 0 && text[caretPos - 1] != '#')
+                {
+                    // Deactivate tag mode
+                    DeactivateTagMode();
+                }
+            }
+            
             _debounceTimer.Stop();
             _debounceTimer.Start();
+        }
+
+        private void ActivateTagMode(TextBox textBox, int tagStartPos)
+        {
+            _isTagModeActive = true;
+            _tagStartPosition = tagStartPos;
+            
+            // Close any existing auto-complete popup
+            AutoCompletePopup.IsOpen = false;
+            
+            // Show tag picker window
+            ShowTagPicker(textBox, tagStartPos);
+        }
+
+        private void DeactivateTagMode()
+        {
+            _isTagModeActive = false;
+            _tagStartPosition = -1;
+            
+            // Close tag picker if open
+            if (_tagPickerWindow != null && _tagPickerWindow.IsVisible)
+            {
+                _tagPickerWindow.Close();
+                _tagPickerWindow = null;
+            }
+        }
+
+        private void ShowTagPicker(TextBox textBox, int tagStartPos)
+        {
+            // Create and show tag picker window
+            _tagPickerWindow = new TagPickerWindow();
+            _tagPickerWindow.TagSelected += TagPickerWindow_TagSelected;
+            _tagPickerWindow.Closed += TagPickerWindow_Closed;
+            
+            // Position the tag picker near the text box
+            var point = textBox.PointToScreen(new Point(0, textBox.ActualHeight));
+            _tagPickerWindow.Left = point.X;
+            _tagPickerWindow.Top = point.Y;
+            _tagPickerWindow.Owner = this;
+            _tagPickerWindow.Show();
+        }
+
+        private void TagPickerWindow_TagSelected(object sender, TagSelectedEventArgs e)
+        {
+            if (_isTagModeActive && _tagPickerWindow != null)
+            {
+                var textBox = this.FindName("MiniTaskInput") as TextBox;
+                if (textBox != null)
+                {
+                    // Insert the selected tag
+                    var text = textBox.Text;
+                    var beforeTag = text.Substring(0, _tagStartPosition);
+                    var afterTag = text.Substring(textBox.CaretIndex);
+                    var newText = beforeTag + "#" + e.Tag + " " + afterTag;
+                    textBox.Text = newText;
+                    textBox.CaretIndex = _tagStartPosition + e.Tag.Length + 2; // After tag + space
+                }
+            }
+            DeactivateTagMode();
+        }
+
+        private void TagPickerWindow_Closed(object sender, EventArgs e)
+        {
+            DeactivateTagMode();
         }
 
         private void MiniTaskInput_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -353,6 +442,9 @@ namespace PomodoroForObsidian
         private async void DebounceTimer_Tick(object sender, EventArgs e)
         {
             _debounceTimer.Stop();
+
+            // Skip auto-complete if in tag mode or if we're typing a tag
+            if (_isTagModeActive) return;
 
             var suggestions = await _autoCompleteManager.GetSuggestionsAsync(MiniTaskInput.Text);
 

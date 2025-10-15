@@ -2,6 +2,17 @@
 
 A Windows desktop application that combines the Pomodoro Technique with seamless Obsidian integration. Track your focused work sessions and automatically log them to your Obsidian daily notes.
 
+## 📋 Changelog
+
+### v1.3.1 (2025-01-15)
+**Bug Fixes & Improvements**
+- **Fixed**: Tag functionality restored - typing "#" in mini window now shows tag picker
+- **Fixed**: Resolved conflict between auto-complete and tag features
+- **Improved**: Enhanced input handling with priority-based event processing
+- **Maintained**: All existing auto-complete functionality preserved
+
+This patch release restores the tag picker functionality that was affected in v1.3.0. Users can now seamlessly use both auto-complete features and tag selection by typing "#" in the task input field.
+
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
