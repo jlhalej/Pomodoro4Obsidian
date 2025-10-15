@@ -7,14 +7,13 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System.Collections.Generic;
+using PomodoroForObsidian.Interfaces;
 
 namespace PomodoroForObsidian
 {
     public class PomodoroSessionManager
     {
-        private static PomodoroSessionManager? _instance;
-        public static PomodoroSessionManager Instance => _instance ??= new PomodoroSessionManager();
-
+        private readonly ITaskHistoryRepository _taskHistoryRepository;
         private DispatcherTimer _timer;
         private TimeSpan _timeLeft;
         private bool _isRunning;
@@ -36,8 +35,9 @@ namespace PomodoroForObsidian
         private TimeSpan _negativeTimeElapsed = TimeSpan.Zero;
         public event EventHandler<TimeSpan>? NegativeTimerTick;
 
-        private PomodoroSessionManager()
+        public PomodoroSessionManager(ITaskHistoryRepository taskHistoryRepository)
         {
+            _taskHistoryRepository = taskHistoryRepository;
             _pomodoroLength = 25;
             _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromSeconds(1);
@@ -90,6 +90,12 @@ namespace PomodoroForObsidian
                 StopNegativeTimer();
                 Utils.LogDebug(nameof(Stop), "Calling LogStoppedSessionToObsidian");
                 LogStoppedSessionToObsidian();
+
+                if (!string.IsNullOrEmpty(_lastTask))
+                {
+                    _taskHistoryRepository.AddOrUpdateTaskAsync(_lastTask);
+                }
+
                 // Reset timer in mini window and reset session timestamp/start time
                 ResetTimer();
                 ResetSessionTimestamp();
@@ -107,6 +113,12 @@ namespace PomodoroForObsidian
                 StopNegativeTimer();
                 Utils.LogDebug(nameof(Pause), "Calling LogPausedSessionToObsidian");
                 LogPausedSessionToObsidian();
+
+                if (!string.IsNullOrEmpty(_lastTask))
+                {
+                    _taskHistoryRepository.AddOrUpdateTaskAsync(_lastTask);
+                }
+
                 Stopped?.Invoke(this, EventArgs.Empty);
             }
         }

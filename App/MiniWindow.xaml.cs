@@ -3,8 +3,10 @@ using System.Windows;
 using System.Windows.Threading;
 using System.Windows.Input;
 using System.Windows.Controls;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices; // For Win32 interop
+using PomodoroForObsidian.Managers;
 
 namespace PomodoroForObsidian
 {
@@ -17,6 +19,9 @@ namespace PomodoroForObsidian
         private DispatcherTimer _flashTimer;
         private bool _isFlashing = false;
         private bool _flashState = false;
+        private AutoCompleteManager _autoCompleteManager;
+        private DispatcherTimer _debounceTimer;
+        private PomodoroSessionManager _pomodoroSessionManager;
 
         // Win32 interop for resizing
         [DllImport("user32.dll")]
@@ -34,11 +39,18 @@ namespace PomodoroForObsidian
         private const int HTBOTTOMLEFT = 16;
         private const int HTBOTTOMRIGHT = 17;
 
-        public MiniWindow(AppSettings settings)
+        public MiniWindow(AppSettings settings, AutoCompleteManager autoCompleteManager, PomodoroSessionManager pomodoroSessionManager)
         {
             InitializeComponent();
             this.Topmost = true;
             _settings = settings;
+            _autoCompleteManager = autoCompleteManager;
+            _pomodoroSessionManager = pomodoroSessionManager;
+
+            _debounceTimer = new DispatcherTimer();
+            _debounceTimer.Interval = TimeSpan.FromMilliseconds(300);
+            _debounceTimer.Tick += DebounceTimer_Tick;
+
             System.Diagnostics.Debug.WriteLine("[MiniWindow] Constructor called");
             
             // Restore position and size
@@ -65,7 +77,7 @@ namespace PomodoroForObsidian
             if (startStopBtn != null)
                 startStopBtn.Click += MiniStartStopButton_Click;
             SetTimer(TimeSpan.FromMinutes(_settings.PomodoroTimerLength));
-            SetTimerRunning(PomodoroSessionManager.Instance.IsRunning);
+            SetTimerRunning(_pomodoroSessionManager.IsRunning);
 
             var miniTaskInput = this.FindName("MiniTaskInput") as TextBox;
             if (miniTaskInput != null)
@@ -79,13 +91,13 @@ namespace PomodoroForObsidian
                     miniTaskInput.Text = _settings.CurrentSessionInputField;
             }
 
-            PomodoroSessionManager.Instance.ReverseCountdownStarted += (s, e) => StartFlashing();
-            PomodoroSessionManager.Instance.Tick += (s, t) => UpdateTimerText(t);
-            PomodoroSessionManager.Instance.Stopped += (s, e) => {
+            _pomodoroSessionManager.ReverseCountdownStarted += (s, e) => StartFlashing();
+            _pomodoroSessionManager.Tick += (s, t) => UpdateTimerText(t);
+            _pomodoroSessionManager.Stopped += (s, e) => {
                 StopFlashing();
                 SetTimerRunning(false);
             };
-            PomodoroSessionManager.Instance.NegativeTimerTick += (s, t) => UpdateNegativeTimerText(t);
+            _pomodoroSessionManager.NegativeTimerTick += (s, t) => UpdateNegativeTimerText(t);
 
             // Attach resize handle events
             AttachResizeHandleEvents();
@@ -148,14 +160,14 @@ namespace PomodoroForObsidian
         private void MiniStartStopButton_Click(object sender, RoutedEventArgs e)
         {
             System.Diagnostics.Debug.WriteLine("[MiniWindow] MiniStartStopButton_Click fired");
-            if (PomodoroSessionManager.Instance.IsRunning)
+            if (_pomodoroSessionManager.IsRunning)
             {
-                PomodoroSessionManager.Instance.Stop();
+                _pomodoroSessionManager.Stop();
             }
             else
             {
                 var task = MiniTaskText;
-                PomodoroSessionManager.Instance.Start(task, "");
+                _pomodoroSessionManager.Start(task, "");
             }
             TimerStartStopClicked?.Invoke(this, EventArgs.Empty);
         }
@@ -164,22 +176,22 @@ namespace PomodoroForObsidian
         {
             if (e.ClickCount == 1)
             {
-                if (PomodoroSessionManager.Instance.IsRunning)
+                if (_pomodoroSessionManager.IsRunning)
                 {
-                    PomodoroSessionManager.Instance.Pause();
+                    _pomodoroSessionManager.Pause();
                 }
                 else
                 {
                     // Resume if paused (session timestamp exists)
                     var settings = AppSettings.Load();
-                    if (!PomodoroSessionManager.Instance.IsRunning && !string.IsNullOrEmpty(settings.CurrentSessionTimestamp))
+                    if (!_pomodoroSessionManager.IsRunning && !string.IsNullOrEmpty(settings.CurrentSessionTimestamp))
                     {
                         var task = MiniTaskText;
-                        PomodoroSessionManager.Instance.Start(task, "");
+                        _pomodoroSessionManager.Start(task, "");
                     }
                 }
             }
-            else if (!PomodoroSessionManager.Instance.IsRunning && e.ClickCount == 2)
+            else if (!_pomodoroSessionManager.IsRunning && e.ClickCount == 2)
             {
                 TimerResetRequested?.Invoke(this, EventArgs.Empty);
             }
@@ -221,29 +233,8 @@ namespace PomodoroForObsidian
 
         private void MiniTaskInput_TextChanged(object sender, TextChangedEventArgs e)
         {
-            var miniTaskInput = sender as TextBox;
-            if (miniTaskInput == null) return;
-            if (e.Changes.Any(change =>
-                change.AddedLength == 1 &&
-                miniTaskInput.Text.Length > change.Offset &&
-                miniTaskInput.Text[change.Offset] == '#'))
-            {
-                int hashIndex = miniTaskInput.Text.IndexOf('#');
-                if (hashIndex >= 0)
-                {
-                    string originalText = miniTaskInput.Text;
-                    var picker = new TagPickerWindow();
-                    if (this.IsVisible)
-                        picker.Owner = this;
-                    if (picker.ShowDialog() == true && !string.IsNullOrEmpty(picker.SelectedTag))
-                    {
-                        string before = originalText.Substring(0, hashIndex);
-                        string after = originalText.Substring(hashIndex + 1);
-                        miniTaskInput.Text = before + picker.SelectedTag + after;
-                        miniTaskInput.CaretIndex = (before + picker.SelectedTag).Length;
-                    }
-                }
-            }
+            _debounceTimer.Stop();
+            _debounceTimer.Start();
         }
 
         private void MiniTaskInput_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -256,10 +247,92 @@ namespace PomodoroForObsidian
             }
         }
 
-        private void MiniTaskInput_KeyDown(object sender, KeyEventArgs e)
+        private async void MiniTaskInput_KeyDown(object sender, KeyEventArgs e)
         {
+            // Handle special key combinations first
+            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                List<string> suggestions = null;
+                bool handled = true;
+
+                switch (e.Key)
+                {
+                    case Key.R:
+                        suggestions = await _autoCompleteManager.GetRecentSuggestionsAsync();
+                        break;
+                    case Key.F:
+                        suggestions = await _autoCompleteManager.GetFrequentSuggestionsAsync();
+                        break;
+                    case Key.Space:
+                        suggestions = await _autoCompleteManager.GetSuggestionsAsync(MiniTaskInput.Text, 10);
+                        break;
+                    default:
+                        handled = false;
+                        break;
+                }
+
+                if (suggestions != null)
+                {
+                    if (suggestions.Any())
+                    {
+                        AutoCompleteListBox.ItemsSource = suggestions;
+                        AutoCompletePopup.IsOpen = true;
+                    }
+                    else
+                    {
+                        AutoCompletePopup.IsOpen = false;
+                    }
+                }
+
+                if (handled)
+                {
+                    e.Handled = true;
+                    return;
+                }
+            }
+
+            if (AutoCompletePopup.IsOpen)
+            {
+                if (e.Key == Key.Down)
+                {
+                    AutoCompleteListBox.Focus();
+                    AutoCompleteListBox.SelectedIndex = (AutoCompleteListBox.SelectedIndex + 1) % AutoCompleteListBox.Items.Count;
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Up)
+                {
+                    AutoCompleteListBox.Focus();
+                    AutoCompleteListBox.SelectedIndex = (AutoCompleteListBox.SelectedIndex - 1 + AutoCompleteListBox.Items.Count) % AutoCompleteListBox.Items.Count;
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Escape)
+                {
+                    AutoCompletePopup.IsOpen = false;
+                    e.Handled = true;
+                }
+                else if (e.Key == Key.Tab)
+                {
+                    if (AutoCompleteListBox.SelectedItem != null)
+                    {
+                        MiniTaskInput.Text = GetCleanSuggestionText(AutoCompleteListBox.SelectedItem.ToString());
+                        MiniTaskInput.CaretIndex = MiniTaskInput.Text.Length;
+                    }
+                    // Keep popup open for refinement
+                    e.Handled = true;
+                }
+            }
+
             if (e.Key == Key.Enter)
             {
+                bool startTimer = (Keyboard.Modifiers & ModifierKeys.Shift) != ModifierKeys.Shift;
+
+                if (AutoCompletePopup.IsOpen && AutoCompleteListBox.SelectedItem != null)
+                {
+                    MiniTaskInput.Text = GetCleanSuggestionText(AutoCompleteListBox.SelectedItem.ToString());
+                    MiniTaskInput.CaretIndex = MiniTaskInput.Text.Length;
+                    AutoCompletePopup.IsOpen = false;
+                }
+
                 var miniTaskInput = sender as TextBox;
                 if (miniTaskInput != null)
                 {
@@ -267,8 +340,64 @@ namespace PomodoroForObsidian
                     settings.CurrentSessionInputField = miniTaskInput.Text;
                     settings.Save();
                 }
-                MiniStartStopButton_Click(sender, new RoutedEventArgs());
+
+                if (startTimer)
+                {
+                    MiniStartStopButton_Click(sender, new RoutedEventArgs());
+                }
+
                 e.Handled = true;
+            }
+        }
+
+        private async void DebounceTimer_Tick(object sender, EventArgs e)
+        {
+            _debounceTimer.Stop();
+
+            var suggestions = await _autoCompleteManager.GetSuggestionsAsync(MiniTaskInput.Text);
+
+            if (suggestions.Any())
+            {
+                AutoCompleteListBox.ItemsSource = suggestions;
+                AutoCompletePopup.IsOpen = true;
+            }
+            else
+            {
+                AutoCompletePopup.IsOpen = false;
+            }
+        }
+
+        private string GetCleanSuggestionText(string suggestion)
+        {
+            if (suggestion.StartsWith("🕒 ") || suggestion.StartsWith("⭐ "))
+            {
+                return suggestion.Substring(2);
+            }
+            return suggestion;
+        }
+
+        private void AutoCompleteListBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                if (AutoCompleteListBox.SelectedItem != null)
+                {
+                    MiniTaskInput.Text = GetCleanSuggestionText(AutoCompleteListBox.SelectedItem.ToString());
+                    AutoCompletePopup.IsOpen = false;
+                    MiniTaskInput.Focus();
+                    MiniTaskInput.CaretIndex = MiniTaskInput.Text.Length;
+                }
+            }
+        }
+
+        private void AutoCompleteListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (AutoCompleteListBox.SelectedItem != null)
+            {
+                MiniTaskInput.Text = GetCleanSuggestionText(AutoCompleteListBox.SelectedItem.ToString());
+                AutoCompletePopup.IsOpen = false;
+                MiniTaskInput.Focus();
+                MiniTaskInput.CaretIndex = MiniTaskInput.Text.Length;
             }
         }
 
@@ -310,7 +439,7 @@ namespace PomodoroForObsidian
             var timerText = this.FindName("MiniTimerText") as TextBlock;
             if (timerText != null)
             {
-                if (PomodoroSessionManager.Instance.IsReverseCountdown)
+                if (_pomodoroSessionManager.IsReverseCountdown)
                 {
                     timerText.Text = "-" + t.Negate().ToString(@"mm\:ss");
                 }

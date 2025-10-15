@@ -188,8 +188,8 @@ namespace PomodoroForObsidian
             var app = System.Windows.Application.Current as App;
             if (app != null)
             {
-                app.SetTaskbarModification(_settings.TaskbarModificationEnabled);
-                app.UpdateTaskbarNotch(width, height, position);
+                //app.SetTaskbarModification(_settings.TaskbarModificationEnabled);
+                //app.UpdateTaskbarNotch(width, height, position);
 
                 // Resize and reposition the mini window to match the notch dimensions and position
                 ResizeMiniWindowToMatchNotch(width, height, position);
@@ -317,8 +317,8 @@ namespace PomodoroForObsidian
             var app = System.Windows.Application.Current as App;
             if (app != null)
             {
-                app.SetTaskbarModification(_settings.TaskbarModificationEnabled);
-                app.UpdateTaskbarNotch(_settings.TaskbarNotchWidth, _settings.TaskbarNotchHeight, _settings.TaskbarNotchPosition);
+                //app.SetTaskbarModification(_settings.TaskbarModificationEnabled);
+                //app.UpdateTaskbarNotch(_settings.TaskbarNotchWidth, _settings.TaskbarNotchHeight, _settings.TaskbarNotchPosition);
 
                 // If we're in the taskbar panel, also resize the mini window to match the notch
                 if (TaskbarPanel.IsVisible)

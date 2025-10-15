@@ -60,6 +60,7 @@
                          BorderBrush="#a06fc6" BorderThickness="1" 
                          Padding="4,0" ToolTip="What are you working on?" 
                          MinWidth="60" MouseDoubleClick="MiniTaskInput_MouseDoubleClick" 
+                         TextChanged="MiniTaskInput_TextChanged" KeyDown="MiniTaskInput_KeyDown"
                          Style="{StaticResource SquareTextBoxStyle}" />
                 <TextBlock x:Name="MiniTimerText" Grid.Column="1" Text="25:00" 
                            Foreground="White" FontSize="14" FontWeight="Bold" 
@@ -74,10 +75,13 @@
                         Margin="4,0,4,0" 
                         Style="{StaticResource SquareButtonStyle}" />
             </Grid>
-        </Border>
+                </Border>
         
-        <!-- Edge resize handles -->
-        <Border x:Name="ResizeHandleLeft" Width="6" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" MouseDown="ResizeLeft_MouseDown" />
+                <Popup x:Name="AutoCompletePopup" IsOpen="False" StaysOpen="False" PlacementTarget="{Binding ElementName=MiniTaskInput}" Placement="Bottom">
+                    <ListBox x:Name="AutoCompleteListBox" KeyDown="AutoCompleteListBox_KeyDown" MouseDoubleClick="AutoCompleteListBox_MouseDoubleClick" />
+                </Popup>
+        
+                <!-- Edge resize handles -->        <Border x:Name="ResizeHandleLeft" Width="6" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" MouseDown="ResizeLeft_MouseDown" />
         <Border x:Name="ResizeHandleRight" Width="6" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" MouseDown="ResizeRight_MouseDown" />
         <Border x:Name="ResizeHandleTop" Height="6" VerticalAlignment="Top" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS" MouseDown="ResizeTop_MouseDown" />
         <Border x:Name="ResizeHandleBottom" Height="6" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS" MouseDown="ResizeBottom_MouseDown" />
