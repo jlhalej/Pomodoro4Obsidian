@@ -26,6 +26,7 @@ namespace PomodoroForObsidian
         private TagPickerWindow? _tagPickerWindow;
         private bool _isTagModeActive = false;
         private int _tagStartPosition = -1;
+        private bool _debugMode = true; // Set to false to disable debug messages
 
         // Win32 interop for resizing
         [DllImport("user32.dll")]
@@ -89,7 +90,8 @@ namespace PomodoroForObsidian
                 miniTaskInput.LostFocus += MiniTaskInput_LostFocus;
                 miniTaskInput.TextChanged += MiniTaskInput_TextChanged;
                 miniTaskInput.MouseDoubleClick += MiniTaskInput_MouseDoubleClick;
-                miniTaskInput.KeyDown += MiniTaskInput_KeyDown;
+
+                if (_debugMode) System.Diagnostics.Debug.WriteLine("[MiniWindow] KeyDown handler attached to MiniTaskInput");
                 // Load saved value
                 if (!string.IsNullOrEmpty(_settings.CurrentSessionInputField))
                     miniTaskInput.Text = _settings.CurrentSessionInputField;
@@ -337,103 +339,83 @@ namespace PomodoroForObsidian
             }
         }
 
-        private async void MiniTaskInput_KeyDown(object sender, KeyEventArgs e)
+        private void MiniTaskInput_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // Handle special key combinations first
-            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-            {
-                List<string> suggestions = null;
-                bool handled = true;
+            HandleAutoCompleteInteraction(sender, e);
+        }
 
-                switch (e.Key)
-                {
-                    case Key.R:
-                        suggestions = await _autoCompleteManager.GetRecentSuggestionsAsync();
-                        break;
-                    case Key.F:
-                        suggestions = await _autoCompleteManager.GetFrequentSuggestionsAsync();
-                        break;
-                    case Key.Space:
-                        suggestions = await _autoCompleteManager.GetSuggestionsAsync(MiniTaskInput.Text, 10);
-                        break;
-                    default:
-                        handled = false;
-                        break;
-                }
 
-                if (suggestions != null)
-                {
-                    if (suggestions.Any())
-                    {
-                        AutoCompleteListBox.ItemsSource = suggestions;
-                        AutoCompleteListBox.SelectedIndex = 0; // Select first item by default
-                        AutoCompletePopup.IsOpen = true;
-                    }
-                    else
-                    {
-                        AutoCompletePopup.IsOpen = false;
-                    }
-                }
-
-                if (handled)
-                {
-                    e.Handled = true;
-                    return;
-                }
-            }
-
+        private async void HandleAutoCompleteInteraction(object sender, KeyEventArgs e)
+        {
             if (AutoCompletePopup.IsOpen)
             {
-                if (e.Key == Key.Down)
+                switch (e.Key)
                 {
-                    AutoCompleteListBox.Focus();
-                    AutoCompleteListBox.SelectedIndex = (AutoCompleteListBox.SelectedIndex + 1) % AutoCompleteListBox.Items.Count;
-                    e.Handled = true;
-                }
-                else if (e.Key == Key.Up)
-                {
-                    AutoCompleteListBox.Focus();
-                    AutoCompleteListBox.SelectedIndex = (AutoCompleteListBox.SelectedIndex - 1 + AutoCompleteListBox.Items.Count) % AutoCompleteListBox.Items.Count;
-                    e.Handled = true;
-                }
-                else if (e.Key == Key.Escape)
-                {
-                    AutoCompletePopup.IsOpen = false;
-                    e.Handled = true;
-                }
-                else if (e.Key == Key.Enter)
-                {
-                    if (AutoCompleteListBox.SelectedItem != null)
-                    {
-                        MiniTaskInput.Text = GetCleanSuggestionText(AutoCompleteListBox.SelectedItem.ToString());
-                        MiniTaskInput.CaretIndex = MiniTaskInput.Text.Length;
+                    case Key.Down:
+                        AutoCompleteListBox.SelectedIndex = (AutoCompleteListBox.SelectedIndex + 1) % AutoCompleteListBox.Items.Count;
+                        e.Handled = true;
+                        break;
+                    case Key.Up:
+                        AutoCompleteListBox.SelectedIndex = (AutoCompleteListBox.SelectedIndex - 1 + AutoCompleteListBox.Items.Count) % AutoCompleteListBox.Items.Count;
+                        e.Handled = true;
+                        break;
+                    case Key.Enter:
+                        if (AutoCompleteListBox.SelectedItem != null)
+                        {
+                            MiniTaskInput.Text = GetCleanSuggestionText(AutoCompleteListBox.SelectedItem.ToString());
+                            MiniTaskInput.CaretIndex = MiniTaskInput.Text.Length;
+                            AutoCompletePopup.IsOpen = false;
+                        }
+                        e.Handled = true;
+                        break;
+                    case Key.Escape:
                         AutoCompletePopup.IsOpen = false;
-                    }
-                    e.Handled = true;
-                }
-                else if (e.Key == Key.Tab)
-                {
-                    if (AutoCompleteListBox.SelectedItem != null)
-                    {
-                        MiniTaskInput.Text = GetCleanSuggestionText(AutoCompleteListBox.SelectedItem.ToString());
-                        MiniTaskInput.CaretIndex = MiniTaskInput.Text.Length;
-                    }
-                    // Keep popup open for refinement
-                    e.Handled = true;
+                        e.Handled = true;
+                        break;
                 }
             }
-            else if (e.Key == Key.Down || e.Key == Key.Up)
+            else
             {
-                // If popup is not open but user presses up/down, check if we have suggestions to show
-                if (MiniTaskInput.Text.Length >= 2)
+                // Handle special key combinations first
+                if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
                 {
-                    // Trigger autocomplete synchronously if not already shown
-                    _debounceTimer.Stop();
-                    await TriggerAutoCompleteSyncAsync();
-                    if (AutoCompletePopup.IsOpen)
+                    List<string> suggestions = null;
+                    bool handled = true;
+
+                    switch (e.Key)
                     {
-                        AutoCompleteListBox.Focus();
+                        case Key.R:
+                            suggestions = await _autoCompleteManager.GetRecentSuggestionsAsync();
+                            break;
+                        case Key.F:
+                            suggestions = await _autoCompleteManager.GetFrequentSuggestionsAsync();
+                            break;
+                        case Key.Space:
+                            suggestions = await _autoCompleteManager.GetSuggestionsAsync(MiniTaskInput.Text, 10);
+                            break;
+                        default:
+                            handled = false;
+                            break;
+                    }
+
+                    if (suggestions != null)
+                    {
+                        if (suggestions.Any())
+                        {
+                            AutoCompleteListBox.ItemsSource = suggestions;
+                            AutoCompleteListBox.SelectedIndex = 0; // Select first item by default
+                            AutoCompletePopup.IsOpen = true;
+                        }
+                        else
+                        {
+                            AutoCompletePopup.IsOpen = false;
+                        }
+                    }
+
+                    if (handled)
+                    {
                         e.Handled = true;
+                        return;
                     }
                 }
             }
@@ -489,20 +471,39 @@ namespace PomodoroForObsidian
 
         private async Task TriggerAutoCompleteSyncAsync()
         {
+            if (_debugMode) System.Diagnostics.Debug.WriteLine("[MiniWindow] TriggerAutoCompleteSyncAsync called");
             // Skip auto-complete if in tag mode or if we're typing a tag
             if (_isTagModeActive) return;
 
             var suggestions = await _autoCompleteManager.GetSuggestionsAsync(MiniTaskInput.Text);
+            if (_debugMode) System.Diagnostics.Debug.WriteLine($"[MiniWindow] Got {suggestions.Count} suggestions for text: '{MiniTaskInput.Text}'");
 
             if (suggestions.Any())
             {
                 AutoCompleteListBox.ItemsSource = suggestions;
                 AutoCompleteListBox.SelectedIndex = 0; // Select first item by default
                 AutoCompletePopup.IsOpen = true;
+                if (_debugMode) System.Diagnostics.Debug.WriteLine("[MiniWindow] Popup opened with suggestions");
             }
             else
             {
-                AutoCompletePopup.IsOpen = false;
+                if (_debugMode) System.Diagnostics.Debug.WriteLine("[MiniWindow] No suggestions for current text, trying recent suggestions");
+                // If no suggestions for current text, show recent suggestions
+                suggestions = await _autoCompleteManager.GetRecentSuggestionsAsync(5);
+                if (_debugMode) System.Diagnostics.Debug.WriteLine($"[MiniWindow] Got {suggestions.Count} recent suggestions");
+
+                if (suggestions.Any())
+                {
+                    AutoCompleteListBox.ItemsSource = suggestions;
+                    AutoCompleteListBox.SelectedIndex = 0; // Select first item by default
+                    AutoCompletePopup.IsOpen = true;
+                    if (_debugMode) System.Diagnostics.Debug.WriteLine("[MiniWindow] Popup opened with recent suggestions");
+                }
+                else
+                {
+                    if (_debugMode) System.Diagnostics.Debug.WriteLine("[MiniWindow] No recent suggestions either, closing popup");
+                    AutoCompletePopup.IsOpen = false;
+                }
             }
         }
 
