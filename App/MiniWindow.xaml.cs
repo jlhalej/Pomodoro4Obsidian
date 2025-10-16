@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Controls;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices; // For Win32 interop
 using PomodoroForObsidian.Managers;
 
@@ -365,6 +366,7 @@ namespace PomodoroForObsidian
                     if (suggestions.Any())
                     {
                         AutoCompleteListBox.ItemsSource = suggestions;
+                        AutoCompleteListBox.SelectedIndex = 0; // Select first item by default
                         AutoCompletePopup.IsOpen = true;
                     }
                     else
@@ -399,6 +401,16 @@ namespace PomodoroForObsidian
                     AutoCompletePopup.IsOpen = false;
                     e.Handled = true;
                 }
+                else if (e.Key == Key.Enter)
+                {
+                    if (AutoCompleteListBox.SelectedItem != null)
+                    {
+                        MiniTaskInput.Text = GetCleanSuggestionText(AutoCompleteListBox.SelectedItem.ToString());
+                        MiniTaskInput.CaretIndex = MiniTaskInput.Text.Length;
+                        AutoCompletePopup.IsOpen = false;
+                    }
+                    e.Handled = true;
+                }
                 else if (e.Key == Key.Tab)
                 {
                     if (AutoCompleteListBox.SelectedItem != null)
@@ -408,6 +420,21 @@ namespace PomodoroForObsidian
                     }
                     // Keep popup open for refinement
                     e.Handled = true;
+                }
+            }
+            else if (e.Key == Key.Down || e.Key == Key.Up)
+            {
+                // If popup is not open but user presses up/down, check if we have suggestions to show
+                if (MiniTaskInput.Text.Length >= 2)
+                {
+                    // Trigger autocomplete synchronously if not already shown
+                    _debounceTimer.Stop();
+                    await TriggerAutoCompleteSyncAsync();
+                    if (AutoCompletePopup.IsOpen)
+                    {
+                        AutoCompleteListBox.Focus();
+                        e.Handled = true;
+                    }
                 }
             }
 
@@ -451,6 +478,26 @@ namespace PomodoroForObsidian
             if (suggestions.Any())
             {
                 AutoCompleteListBox.ItemsSource = suggestions;
+                AutoCompleteListBox.SelectedIndex = 0; // Select first item by default
+                AutoCompletePopup.IsOpen = true;
+            }
+            else
+            {
+                AutoCompletePopup.IsOpen = false;
+            }
+        }
+
+        private async Task TriggerAutoCompleteSyncAsync()
+        {
+            // Skip auto-complete if in tag mode or if we're typing a tag
+            if (_isTagModeActive) return;
+
+            var suggestions = await _autoCompleteManager.GetSuggestionsAsync(MiniTaskInput.Text);
+
+            if (suggestions.Any())
+            {
+                AutoCompleteListBox.ItemsSource = suggestions;
+                AutoCompleteListBox.SelectedIndex = 0; // Select first item by default
                 AutoCompletePopup.IsOpen = true;
             }
             else

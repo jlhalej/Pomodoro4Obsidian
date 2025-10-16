@@ -78,7 +78,7 @@
                 </Border>
         
                 <Popup x:Name="AutoCompletePopup" IsOpen="False" StaysOpen="False" PlacementTarget="{Binding ElementName=MiniTaskInput}" Placement="Bottom">
-                    <ListBox x:Name="AutoCompleteListBox" KeyDown="AutoCompleteListBox_KeyDown" MouseDoubleClick="AutoCompleteListBox_MouseDoubleClick" />
+                    <ListBox x:Name="AutoCompleteListBox" Focusable="True" KeyDown="AutoCompleteListBox_KeyDown" MouseDoubleClick="AutoCompleteListBox_MouseDoubleClick" Background="#2d223a" Foreground="White" BorderBrush="#a06fc6" BorderThickness="1" />
                 </Popup>
         
                 <!-- Edge resize handles -->        <Border x:Name="ResizeHandleLeft" Width="6" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" MouseDown="ResizeLeft_MouseDown" />
