@@ -58,7 +58,7 @@
                          VerticalContentAlignment="Center" FontSize="11" 
                          Background="#2d223a" Foreground="White" 
                          BorderBrush="#a06fc6" BorderThickness="1" 
-                         Padding="4,0" ToolTip="What are you working on?" 
+                         Padding="4,0" 
                          MinWidth="60" MouseDoubleClick="MiniTaskInput_MouseDoubleClick" 
                          TextChanged="MiniTaskInput_TextChanged"
                          PreviewKeyDown="MiniTaskInput_PreviewKeyDown"

@@ -21,7 +21,7 @@ namespace PomodoroForObsidian
         public DateTime? CurrentSessionStartTime { get; set; }
         public string? CurrentSessionInputField { get; set; }
         public List<string> Tags { get; set; } = new List<string>();
-        public string Header { get; set; } = "# Pomodoro Sessions";
+        public string Header { get; set; } = "# Day Planner";
         public bool DebugLogEnabled { get; set; } = false;
         public int MaximumSessionLength { get; set; } = 120;
         public string ObsidianVaultPath { get; set; } = string.Empty;

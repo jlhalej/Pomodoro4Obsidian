@@ -26,6 +26,7 @@ namespace PomodoroForObsidian
         private TagPickerWindow? _tagPickerWindow;
         private bool _isTagModeActive = false;
         private int _tagStartPosition = -1;
+        private bool _isWindowLoaded = false;
         private bool _debugMode = true; // Set to false to disable debug messages
 
         // Win32 interop for resizing
@@ -48,6 +49,7 @@ namespace PomodoroForObsidian
         {
             InitializeComponent();
             this.Topmost = true;
+            this.Loaded += MiniWindow_Loaded;
             _settings = settings;
             _autoCompleteManager = autoCompleteManager;
             _pomodoroSessionManager = pomodoroSessionManager;
@@ -90,6 +92,8 @@ namespace PomodoroForObsidian
                 miniTaskInput.LostFocus += MiniTaskInput_LostFocus;
                 miniTaskInput.TextChanged += MiniTaskInput_TextChanged;
                 miniTaskInput.MouseDoubleClick += MiniTaskInput_MouseDoubleClick;
+                miniTaskInput.MouseEnter += MiniTaskInput_MouseEnter;
+                miniTaskInput.MouseLeave += MiniTaskInput_MouseLeave;
 
                 if (_debugMode) System.Diagnostics.Debug.WriteLine("[MiniWindow] KeyDown handler attached to MiniTaskInput");
                 // Load saved value
@@ -239,6 +243,11 @@ namespace PomodoroForObsidian
 
         private void MiniTaskInput_TextChanged(object sender, TextChangedEventArgs e)
         {
+            if (!_isWindowLoaded)
+            {
+                return;
+            }
+
             // Check for "#" character to trigger tag picker
             var textBox = sender as TextBox;
             if (textBox != null)
@@ -316,9 +325,9 @@ namespace PomodoroForObsidian
                     var text = textBox.Text;
                     var beforeTag = text.Substring(0, _tagStartPosition);
                     var afterTag = text.Substring(textBox.CaretIndex);
-                    var newText = beforeTag + "#" + e.Tag + " " + afterTag;
+                    var newText = beforeTag + e.Tag + " " + afterTag;
                     textBox.Text = newText;
-                    textBox.CaretIndex = _tagStartPosition + e.Tag.Length + 2; // After tag + space
+                    textBox.CaretIndex = _tagStartPosition + e.Tag.Length + 1; // After tag + space
                 }
             }
             DeactivateTagMode();
@@ -620,6 +629,11 @@ namespace PomodoroForObsidian
             if (bottomRight != null) bottomRight.MouseDown += ResizeBottomRight_MouseDown;
         }
 
+        private void MiniWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            _isWindowLoaded = true;
+        }
+
         // Resize handle events
         private void ResizeLeft_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -691,6 +705,24 @@ namespace PomodoroForObsidian
             ReleaseCapture();
             var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
             SendMessage(hwnd, WM_NCLBUTTONDOWN, (IntPtr)direction, IntPtr.Zero);
+        }
+
+        private void MiniTaskInput_MouseEnter(object sender, MouseEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox != null && string.IsNullOrEmpty(textBox.Text))
+            {
+                textBox.ToolTip = "What are you working on?";
+            }
+        }
+
+        private void MiniTaskInput_MouseLeave(object sender, MouseEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox != null)
+            {
+                textBox.ToolTip = null;
+            }
         }
     }
 }

@@ -16,7 +16,7 @@ namespace PomodoroForObsidian
             }
             else
             {
-                MessageBoxNotification($"The Journal does not exist, Open Obsidian and create your note:\n{journalFile}");
+                BubbleNotification($"The Journal does not exist, Open Obsidian and create your note:\n{journalFile}");
             }
         }
 
