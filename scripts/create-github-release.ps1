@@ -2,8 +2,8 @@
 # This script creates a GitHub release and uploads the Squirrel files
 
 param(
-    [string]$Version = "1.0.8",
-    [string]$ReleaseNotes = "First Squirrel-enabled release with auto-update functionality",
+    [string]$Version = "1.4.1",
+    [string]$ReleaseNotes = "Fixes for tag selector, conditional tooltip, autocomplete on startup, and improved taskbar notch behavior. Also, enhanced logging for pomodoro sessions.",
     [string]$RepoOwner = "jlhalej",
     [string]$RepoName = "Pomodoro4Obsidian"
 )
