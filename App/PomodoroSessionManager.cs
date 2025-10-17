@@ -15,6 +15,7 @@ namespace PomodoroForObsidian
     {
         private readonly ITaskHistoryRepository _taskHistoryRepository;
         private DispatcherTimer _timer = new DispatcherTimer();
+        private DispatcherTimer _updateTimer = new DispatcherTimer();
         private TimeSpan _timeLeft;
         private bool _isRunning;
         private int _pomodoroLength;
@@ -41,6 +42,8 @@ namespace PomodoroForObsidian
             _pomodoroLength = 25;
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
+            _updateTimer.Interval = TimeSpan.FromMinutes(3);
+            _updateTimer.Tick += _updateTimer_Tick;
             ResetTimer();
         }
 
@@ -66,6 +69,8 @@ namespace PomodoroForObsidian
                     settings.CurrentSessionStartTime = DateTime.Now;
                     settings.Save();
                     Utils.LogDebug(nameof(Start), $"Saved session timestamp to settings: {settings.CurrentSessionTimestamp}");
+                    LogRunningSessionToObsidian(true);
+                    _updateTimer.Start();
                 }
                 else
                 {
@@ -86,6 +91,7 @@ namespace PomodoroForObsidian
             {
                 _isRunning = false;
                 _timer.Stop();
+                _updateTimer.Stop();
                 StopNegativeTimer();
                 Utils.LogDebug(nameof(Stop), "Calling LogStoppedSessionToObsidian");
                 LogStoppedSessionToObsidian();
@@ -109,6 +115,7 @@ namespace PomodoroForObsidian
             {
                 _isRunning = false;
                 _timer.Stop();
+                _updateTimer.Stop();
                 StopNegativeTimer();
                 Utils.LogDebug(nameof(Pause), "Calling LogPausedSessionToObsidian");
                 LogPausedSessionToObsidian();
@@ -194,21 +201,26 @@ namespace PomodoroForObsidian
             _negativeTimeElapsed = TimeSpan.Zero;
         }
 
-        private void LogPausedSessionToObsidian()
+        private void _updateTimer_Tick(object? sender, EventArgs e)
         {
-            Utils.LogDebug(nameof(LogPausedSessionToObsidian), "Begin logging session to journal");
+            LogRunningSessionToObsidian();
+        }
+
+        private void LogRunningSessionToObsidian(bool isInitialLog = false)
+        {
+            Utils.LogDebug(nameof(LogRunningSessionToObsidian), "Begin logging session to journal");
             var settings = AppSettings.Load();
             string timestamp = settings.CurrentSessionTimestamp ?? DateTime.Now.ToString("yyyyMMddHHmmssfff");
             DateTime start = settings.CurrentSessionStartTime ?? DateTime.Now;
-            DateTime end = DateTime.Now;
+            DateTime end = isInitialLog ? start.AddMinutes(3) : DateTime.Now;
             if (start.Hour == end.Hour && start.Minute == end.Minute)
             {
-                Utils.LogDebug(nameof(LogPausedSessionToObsidian), "Start and end time are in the same minute, not logging session.");
+                Utils.LogDebug(nameof(LogRunningSessionToObsidian), "Start and end time are in the same minute, not logging session.");
                 return;
             }
             if (start == end)
             {
-                Utils.LogDebug(nameof(LogPausedSessionToObsidian), "Start and end time are the same, not logging session.");
+                Utils.LogDebug(nameof(LogRunningSessionToObsidian), "Start and end time are the same, not logging session.");
                 return;
             }
             string today = DateTime.Now.ToString(settings.JournalNoteFormat.Replace("YYYY", "yyyy").Replace("DD", "dd"), CultureInfo.InvariantCulture);
@@ -218,8 +230,8 @@ namespace PomodoroForObsidian
             string project = string.Empty;
             string entry = $"- {start:HH:mm} - {end:HH:mm} {task} {project} {timestamp}";
 
-            Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Preparing to log session. Timestamp: {timestamp}, Start: {start:HH:mm}, End: {end:HH:mm}, Task: '{task}', JournalFile: {journalFile}");
-            Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Looking for header: '{header}' in journal file: {journalFile}");
+            Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Preparing to log session. Timestamp: {timestamp}, Start: {start:HH:mm}, End: {end:HH:mm}, Task: '{task}', JournalFile: {journalFile}");
+            Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Looking for header: '{header}' in journal file: {journalFile}");
 
             if (!File.Exists(journalFile))
             {
@@ -228,7 +240,7 @@ namespace PomodoroForObsidian
                     sw.WriteLine(header);
                     sw.WriteLine(entry);
                 }
-                Utils.LogDebug(nameof(LogPausedSessionToObsidian), "Journal file did not exist, created and wrote header/entry.");
+                Utils.LogDebug(nameof(LogRunningSessionToObsidian), "Journal file did not exist, created and wrote header/entry.");
                 return;
             }
 
@@ -255,14 +267,26 @@ namespace PomodoroForObsidian
                 // Update the line in place
                 linesList[foundLine] = entry;
                 File.WriteAllLines(journalFile, linesList);
-                Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Updated session entry at line {foundLine} in journal file: {journalFile}");
+                Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Updated session entry at line {foundLine} in journal file: {journalFile}");
             }
             else if (foundHeader)
             {
-                // Insert after header
-                linesList.Insert(headerIndex + 1, entry);
+                // Find the end of the header section (either next header or end of file)
+                int insertIndex = linesList.Count; // Default to end of file
+                for (int i = headerIndex + 1; i < linesList.Count; i++)
+                {
+                    string line = linesList[i].Trim();
+                    // Check if this line is another header (starts with #)
+                    if (line.StartsWith("#") && line.Length > 1)
+                    {
+                        insertIndex = i;
+                        break;
+                    }
+                }
+
+                linesList.Insert(insertIndex, entry);
                 File.WriteAllLines(journalFile, linesList);
-                Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Appended new session entry after header at line {headerIndex + 1} in journal file: {journalFile}");
+                Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Appended new session entry at end of section at line {insertIndex} in journal file: {journalFile}");
             }
             else
             {
@@ -271,8 +295,13 @@ namespace PomodoroForObsidian
                 linesList.Add(header);
                 linesList.Add(entry);
                 File.WriteAllLines(journalFile, linesList);
-                Utils.LogDebug(nameof(LogPausedSessionToObsidian), $"Header not found, appended header and new session entry at end of journal file: {journalFile}");
+                Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Header not found, appended header and new session entry at end of journal file: {journalFile}");
             }
+        }
+
+        private void LogPausedSessionToObsidian()
+        {
+            LogRunningSessionToObsidian();
         }
 
         private void LogStoppedSessionToObsidian()
@@ -313,67 +342,68 @@ namespace PomodoroForObsidian
                 return;
             }
 
-            // Remove any previous paused entry with the timestamp
             var linesList = new System.Collections.Generic.List<string>(File.ReadAllLines(journalFile));
-            bool foundHeader = false;
-            int headerIndex = -1;
-            bool removedPausedEntry = false;
+            int foundLine = -1;
             if (!string.IsNullOrEmpty(timestamp))
             {
-                for (int i = linesList.Count - 1; i >= 0; i--)
+                for (int i = 0; i < linesList.Count; i++)
                 {
                     if (linesList[i].Contains(timestamp))
                     {
-                        Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Found and removing previous paused entry with timestamp: {timestamp} at line {i}");
-                        linesList.RemoveAt(i);
-                        removedPausedEntry = true;
-                    }
-                }
-            }
-            for (int i = 0; i < linesList.Count; i++)
-            {
-                if (linesList[i].Trim() == header)
-                {
-                    foundHeader = true;
-                    headerIndex = i;
-                }
-            }
-
-            if (removedPausedEntry)
-            {
-                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"A previously paused session entry was found and removed. The new stopped session will be written without the timestamp.");
-            }
-            else
-            {
-                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"No previous paused session entry with timestamp {timestamp} was found. Writing stopped session entry.");
-            }
-
-            if (foundHeader)
-            {
-                // Find the end of the header section (either next header or end of file)
-                int insertIndex = linesList.Count; // Default to end of file
-                for (int i = headerIndex + 1; i < linesList.Count; i++)
-                {
-                    string line = linesList[i].Trim();
-                    // Check if this line is another header (starts with #)
-                    if (line.StartsWith("#") && line.Length > 1)
-                    {
-                        insertIndex = i;
+                        foundLine = i;
                         break;
                     }
                 }
+            }
 
-                linesList.Insert(insertIndex, entry);
+            if (foundLine != -1)
+            {
+                // Update the line in place
+                linesList[foundLine] = entry;
                 File.WriteAllLines(journalFile, linesList);
-                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Appended stopped session entry at end of section at line {insertIndex} in journal file: {journalFile}");
+                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Updated session entry at line {foundLine} in journal file: {journalFile}");
             }
             else
             {
-                linesList.Add("");
-                linesList.Add(header);
-                linesList.Add(entry);
-                File.WriteAllLines(journalFile, linesList);
-                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Header not found, appended header and stopped session entry at end of journal file: {journalFile}");
+                // If the line with the timestamp was not found, add the entry at the end of the section
+                bool foundHeader = false;
+                int headerIndex = -1;
+                for (int i = 0; i < linesList.Count; i++)
+                {
+                    if (linesList[i].Trim() == header)
+                    {
+                        foundHeader = true;
+                        headerIndex = i;
+                    }
+                }
+
+                if (foundHeader)
+                {
+                    // Find the end of the header section (either next header or end of file)
+                    int insertIndex = linesList.Count; // Default to end of file
+                    for (int i = headerIndex + 1; i < linesList.Count; i++)
+                    {
+                        string line = linesList[i].Trim();
+                        // Check if this line is another header (starts with #)
+                        if (line.StartsWith("#") && line.Length > 1)
+                        {
+                            insertIndex = i;
+                            break;
+                        }
+                    }
+
+                    linesList.Insert(insertIndex, entry);
+                    File.WriteAllLines(journalFile, linesList);
+                    Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Appended stopped session entry at end of section at line {insertIndex} in journal file: {journalFile}");
+                }
+                else
+                {
+                    linesList.Add("");
+                    linesList.Add(header);
+                    linesList.Add(entry);
+                    File.WriteAllLines(journalFile, linesList);
+                    Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Header not found, appended header and stopped session entry at end of journal file: {journalFile}");
+                }
             }
         }
 
