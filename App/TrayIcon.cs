@@ -67,10 +67,15 @@ namespace PomodoroForObsidian
 
             _notifyIcon.ContextMenuStrip = new ContextMenuStrip();
 
-            _settingsMenuItem = new ToolStripMenuItem("Settings");
-            _settingsMenuItem.Click += (s, e) => ShowSettingsWindow();
+            _settingsMenuItem = new ToolStripMenuItem("⚙ Settings");
 
-            _notifyIcon.ContextMenuStrip.Items.Add(_settingsMenuItem);
+            var openSettingsItem = new ToolStripMenuItem("⚙ Open Settings");
+            openSettingsItem.Click += (s, e) => ShowSettingsWindow();
+            _settingsMenuItem.DropDownItems.Add(openSettingsItem);
+
+            var openDebugFileItem = new ToolStripMenuItem("📄 Open Debug File");
+            openDebugFileItem.Click += (s, e) => OpenDebugFile();
+            _settingsMenuItem.DropDownItems.Add(openDebugFileItem); _notifyIcon.ContextMenuStrip.Items.Add(_settingsMenuItem);
             _notifyIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator());
             _notifyIcon.ContextMenuStrip.Items.Add("Exit", null, (s, e) => ExitApp());
 
@@ -274,6 +279,39 @@ namespace PomodoroForObsidian
                 }
             };
             settingsWindow.Show();
+        }
+
+        private void OpenDebugFile()
+        {
+            try
+            {
+                string debugFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug.csv");
+
+                if (!File.Exists(debugFilePath))
+                {
+                    Utils.LogDebug("TrayIcon", "Debug file does not exist yet, opening settings");
+
+                    // Open settings window and navigate to the debug logging option
+                    var settingsWindow = new SettingsWindow();
+                    settingsWindow.Show();
+                    settingsWindow.Activate();
+
+                    ShowBalloon("Debug file does not exist yet. Please enable debug logging in Settings.", "Debug File", ToolTipIcon.Info);
+                    return;
+                }
+
+                Utils.LogDebug("TrayIcon", $"Opening debug file: {debugFilePath}");
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = debugFilePath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Utils.LogDebug("TrayIcon", $"Error opening debug file: {ex.Message}");
+                ShowBalloon($"Failed to open debug file: {ex.Message}", "Error", ToolTipIcon.Error);
+            }
         }
 
         private void ExitApp()
