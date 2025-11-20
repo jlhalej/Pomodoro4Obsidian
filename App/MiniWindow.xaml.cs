@@ -526,6 +526,11 @@ namespace PomodoroForObsidian
         {
             _debounceTimer.Stop();
 
+            // Save the current text to settings so journal updates can pick it up
+            var settings = AppSettings.Load();
+            settings.CurrentSessionInputField = MiniTaskInput.Text;
+            settings.Save();
+
             // Skip auto-complete if in tag mode or if we're typing a tag
             if (_isTagModeActive) return;
 

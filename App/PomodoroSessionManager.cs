@@ -159,6 +159,9 @@ namespace PomodoroForObsidian
 
         public void ResetTimer()
         {
+            // Reload settings to get the latest pomodoro timer length
+            var settings = AppSettings.Load();
+            _pomodoroLength = settings.PomodoroTimerLength;
             _timeLeft = TimeSpan.FromMinutes(_pomodoroLength);
             _isRunning = false;
             _timer.Stop();
@@ -247,7 +250,7 @@ namespace PomodoroForObsidian
             var settings = AppSettings.Load();
             string timestamp = settings.CurrentSessionTimestamp ?? DateTime.Now.ToString("yyyyMMddHHmmssfff");
             DateTime start = settings.CurrentSessionStartTime ?? DateTime.Now;
-            DateTime end = isInitialLog ? start.AddMinutes(3) : DateTime.Now;
+            DateTime end = isInitialLog ? start.AddMinutes(1) : DateTime.Now;
             if (start.Hour == end.Hour && start.Minute == end.Minute)
             {
                 Utils.LogDebug(nameof(LogRunningSessionToObsidian), "Start and end time are in the same minute, not logging session.");
