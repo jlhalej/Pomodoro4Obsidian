@@ -99,28 +99,20 @@ namespace PomodoroForObsidian
 
             _pomodoroSessionManager?.GetFileListFromVault();
 
-            if (_settings?.MiniModeActive == true || _settings?.FirstRun == true)
+            // Always create and show mini window
+            if (_settings != null && _autoCompleteManager != null && _pomodoroSessionManager != null)
             {
-                if (_settings != null && _autoCompleteManager != null && _pomodoroSessionManager != null)
+                _miniWindow = new MiniWindow(_settings, _autoCompleteManager, _pomodoroSessionManager);
+                WireMiniWindowEvents();
+
+                if (_settings.TaskbarModificationEnabled && _taskbarManager != null && _miniWindow != null)
                 {
-                    _miniWindow = new MiniWindow(_settings, _autoCompleteManager, _pomodoroSessionManager);
-                    WireMiniWindowEvents();
-
-                    if (_settings.TaskbarModificationEnabled && _taskbarManager != null && _miniWindow != null)
-                    {
-                        var idealPosition = _taskbarManager.GetIdealMiniWindowPosition(_miniWindow.Width, _miniWindow.Height);
-                        _miniWindow.Left = idealPosition.X;
-                        _miniWindow.Top = idealPosition.Y;
-                    }
-
-                    _miniWindow.Show();
-                    if (_settings != null)
-                    {
-                        _settings.MiniModeActive = true;
-                        _settings.FirstRun = false;
-                        _settings.Save();
-                    }
+                    var idealPosition = _taskbarManager.GetIdealMiniWindowPosition(_miniWindow.Width, _miniWindow.Height);
+                    _miniWindow.Left = idealPosition.X;
+                    _miniWindow.Top = idealPosition.Y;
                 }
+
+                _miniWindow.Show();
             }
 
             InitializeAutoUpdateAsync();

@@ -12,7 +12,6 @@ namespace PomodoroForObsidian
     public class TrayIcon : IDisposable
     {
         private NotifyIcon _notifyIcon = new NotifyIcon();
-        private ToolStripMenuItem _miniWindowMenuItem = new ToolStripMenuItem();
         private ToolStripMenuItem _settingsMenuItem = new ToolStripMenuItem();
 
         // Fields for blinking icon functionality
@@ -22,7 +21,7 @@ namespace PomodoroForObsidian
         private Icon? _defaultIcon;
         private Icon? _primaryIcon;
         private Icon? _secondaryIcon;
-        
+
         private PomodoroSessionManager _pomodoroSessionManager;
         private AppSettings _settings;
         private AutoCompleteManager _autoCompleteManager;
@@ -68,16 +67,12 @@ namespace PomodoroForObsidian
 
             _notifyIcon.ContextMenuStrip = new ContextMenuStrip();
 
-            _miniWindowMenuItem = new ToolStripMenuItem("Mini Mode") { CheckOnClick = true };
             _settingsMenuItem = new ToolStripMenuItem("Settings");
-            _miniWindowMenuItem.Click += (s, e) => ToggleMiniWindow();
             _settingsMenuItem.Click += (s, e) => ShowSettingsWindow();
 
-            _notifyIcon.ContextMenuStrip.Items.Add(_miniWindowMenuItem);
             _notifyIcon.ContextMenuStrip.Items.Add(_settingsMenuItem);
             _notifyIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator());
             _notifyIcon.ContextMenuStrip.Items.Add("Exit", null, (s, e) => ExitApp());
-            _notifyIcon.ContextMenuStrip.Opening += (s, e) => UpdateMenuChecks();
 
             _notifyIcon.MouseClick += NotifyIcon_MouseClick;
 
@@ -100,15 +95,18 @@ namespace PomodoroForObsidian
                 Utils.LogDebug("TrayIcon", "Blinking timer initialized on UI thread");
             });
 
-            _pomodoroSessionManager.ReverseCountdownStarted += (s, e) => {
+            _pomodoroSessionManager.ReverseCountdownStarted += (s, e) =>
+            {
                 Utils.LogDebug("TrayIcon", "ReverseCountdownStarted event triggered, starting blinking");
                 StartBlinking();
             };
-            _pomodoroSessionManager.Stopped += (s, e) => {
+            _pomodoroSessionManager.Stopped += (s, e) =>
+            {
                 Utils.LogDebug("TrayIcon", "Stopped event triggered, stopping blinking");
                 StopBlinking();
             };
-            _pomodoroSessionManager.Reset += (s, e) => {
+            _pomodoroSessionManager.Reset += (s, e) =>
+            {
                 Utils.LogDebug("TrayIcon", "Reset event triggered, stopping blinking");
                 StopBlinking();
             };
@@ -248,29 +246,6 @@ namespace PomodoroForObsidian
             }
         }
 
-        private void UpdateMenuChecks()
-        {
-            var app = (App)System.Windows.Application.Current;
-            var miniWindow = app.GetMiniWindow();
-            _miniWindowMenuItem.Checked = miniWindow != null && miniWindow.IsVisible;
-        }
-
-        private void ToggleMiniWindow()
-        {
-            var app = (App)System.Windows.Application.Current;
-            var miniWindow = app.GetMiniWindow();
-            if (miniWindow != null && miniWindow.IsVisible)
-            {
-                miniWindow.Hide();
-                _settings.MiniModeActive = false;
-            }
-            else
-            {
-                ShowMiniWindow();
-            }
-            _settings.Save();
-        }
-
         private void ShowMiniWindow()
         {
             var app = (App)System.Windows.Application.Current;
@@ -281,8 +256,8 @@ namespace PomodoroForObsidian
                 app.SetMiniWindow(miniWindow);
             }
             miniWindow.Show();
-            _settings.MiniModeActive = true;
-            _settings.Save();
+            miniWindow.Activate();
+            miniWindow.Focus();
         }
 
         private void ShowSettingsWindow()

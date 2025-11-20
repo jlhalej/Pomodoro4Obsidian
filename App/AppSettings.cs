@@ -10,8 +10,7 @@ namespace PomodoroForObsidian
         public string ObsidianJournalPath { get; set; } = string.Empty;
         public string JournalNoteFormat { get; set; } = "YYYY-MM-DD";
         public int PomodoroTimerLength { get; set; } = 25;
-        public bool MiniModeActive { get; set; } = true; // Changed to true so mini window is shown by default
-        // Removed MainWindowVisible, MainWindowLeft, MainWindowTop
+        // Removed MainWindowVisible, MainWindowLeft, MainWindowTop, MiniModeActive
         public double? MiniWindowLeft { get; set; } = null;
         public double? MiniWindowTop { get; set; } = null;
         public double? MiniWindowWidth { get; set; } = null;
