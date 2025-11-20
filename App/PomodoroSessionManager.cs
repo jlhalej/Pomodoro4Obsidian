@@ -42,7 +42,7 @@ namespace PomodoroForObsidian
             _pomodoroLength = 25;
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
-            _updateTimer.Interval = TimeSpan.FromMinutes(3);
+            _updateTimer.Interval = TimeSpan.FromMinutes(1);
             _updateTimer.Tick += _updateTimer_Tick;
             ResetTimer();
         }
@@ -52,6 +52,39 @@ namespace PomodoroForObsidian
             _pomodoroLength = minutes;
             if (!_isRunning)
                 ResetTimer();
+        }
+
+        public void AdjustTimerLength(int deltaMinutes)
+        {
+            // Adjust the current timer by deltaMinutes (can be positive or negative)
+            if (!_isRunning && !_reverseCountdown)
+                return; // Only adjust if timer is running or in reverse countdown
+
+            if (_reverseCountdown)
+            {
+                // In negative countdown: add minutes to reduce negative time
+                // e.g., -5 minutes + 5 minutes adjustment = 0 minutes
+                _negativeTimeElapsed = _negativeTimeElapsed.Add(TimeSpan.FromMinutes(-deltaMinutes));
+                if (_negativeTimeElapsed < TimeSpan.Zero)
+                {
+                    // If adjustment brings us back to positive, exit reverse countdown
+                    _reverseCountdown = false;
+                    StopNegativeTimer();
+                    _timeLeft = TimeSpan.FromMinutes(-_negativeTimeElapsed.TotalMinutes);
+                    _negativeTimeElapsed = TimeSpan.Zero;
+                }
+            }
+            else
+            {
+                // Normal countdown: adjust time left
+                _timeLeft = _timeLeft.Add(TimeSpan.FromMinutes(deltaMinutes));
+
+                // Don't allow negative values in normal countdown
+                if (_timeLeft < TimeSpan.Zero)
+                    _timeLeft = TimeSpan.Zero;
+            }
+
+            Utils.LogDebug(nameof(AdjustTimerLength), $"Timer adjusted by {deltaMinutes} minutes. New time left: {_timeLeft}");
         }
 
         public void Start(string? task = null, string? project = null)
@@ -168,7 +201,15 @@ namespace PomodoroForObsidian
             }
             else
             {
-                // Reverse countdown: keep timer running, but NegativeTimer handles display
+                // Reverse countdown: check for maximum session length
+                if (settings.MaximumSessionLength > 0 &&
+                    (DateTime.Now - (settings.CurrentSessionStartTime ?? DateTime.Now)).TotalMinutes >= settings.MaximumSessionLength)
+                {
+                    Utils.LogDebug(nameof(Timer_Tick), "Maximum session length reached during negative countdown. Auto-stopping timer.");
+                    Utils.BubbleNotification("Maximum session length reached. Timer stopped automatically.");
+                    Stop();
+                    return;
+                }
             }
         }
 
@@ -270,8 +311,9 @@ namespace PomodoroForObsidian
                 for (int i = headerIndex + 1; i < linesList.Count; i++)
                 {
                     string line = linesList[i].Trim();
-                    // Check if this line is another header (starts with #)
-                    if (line.StartsWith("#") && line.Length > 1)
+                    // Check if this line is another header (starts with # followed by space)
+                    // This distinguishes headers from tags (which don't have space after #)
+                    if (line.StartsWith("#") && line.Length > 1 && char.IsWhiteSpace(line[1]))
                     {
                         insertIndex = i;
                         break;
@@ -299,25 +341,40 @@ namespace PomodoroForObsidian
             var settings = AppSettings.Load();
             DateTime start = settings.CurrentSessionStartTime ?? DateTime.Now;
             DateTime end = DateTime.Now;
-            if (start.Hour == end.Hour && start.Minute == end.Minute)
+
+            // Handle case where start and end are in the same minute
+            bool isSameMinute = (start.Hour == end.Hour && start.Minute == end.Minute);
+            if (isSameMinute)
             {
-                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), "Start and end time are in the same minute, not logging session.");
-                return;
+                Utils.LogDebug(nameof(LogStoppedSessionToObsidian), "Start and end time are in the same minute, adjusting end time to +1 minute.");
+                end = start.AddMinutes(1);
             }
+
             if (start == end)
             {
                 Utils.LogDebug(nameof(LogStoppedSessionToObsidian), "Start and end time are the same, not logging session.");
                 return;
             }
+
+            // Check if session was auto-stopped by maximum session length
+            bool wasAutoStopped = false;
+            if (settings.MaximumSessionLength > 0)
+            {
+                double sessionDuration = (end - start).TotalMinutes;
+                if (sessionDuration >= settings.MaximumSessionLength)
+                {
+                    wasAutoStopped = true;
+                }
+            }
+
             string today = DateTime.Now.ToString(settings.JournalNoteFormat.Replace("YYYY", "yyyy").Replace("DD", "dd"), CultureInfo.InvariantCulture);
             string journalFile = Path.Combine(settings.ObsidianJournalPath, today + ".md");
             string header = string.IsNullOrWhiteSpace(settings.Header) ? "# Pomodoro Sessions" : settings.Header;
             string task = settings.CurrentSessionInputField ?? string.Empty;
             string project = string.Empty;
             string timestamp = settings.CurrentSessionTimestamp ?? string.Empty;
-            string entry = $"- {start:HH:mm} - {end:HH:mm} {task} {project}";
-
-            Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Preparing to log stopped session. Start: {start:HH:mm}, End: {end:HH:mm}, Task: '{task}', JournalFile: {journalFile}, Timestamp: {timestamp}");
+            string autoStopMarker = wasAutoStopped ? " [auto-stopped]" : "";
+            string entry = $"- {start:HH:mm} - {end:HH:mm} {task} {project}{autoStopMarker}"; Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Preparing to log stopped session. Start: {start:HH:mm}, End: {end:HH:mm}, Task: '{task}', JournalFile: {journalFile}, Timestamp: {timestamp}");
             Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Looking for header: '{header}' in journal file: {journalFile}");
 
             if (!File.Exists(journalFile))
@@ -373,8 +430,9 @@ namespace PomodoroForObsidian
                     for (int i = headerIndex + 1; i < linesList.Count; i++)
                     {
                         string line = linesList[i].Trim();
-                        // Check if this line is another header (starts with #)
-                        if (line.StartsWith("#") && line.Length > 1)
+                        // Check if this line is another header (starts with # followed by space)
+                        // This distinguishes headers from tags (which don't have space after #)
+                        if (line.StartsWith("#") && line.Length > 1 && char.IsWhiteSpace(line[1]))
                         {
                             insertIndex = i;
                             break;

@@ -22,6 +22,7 @@ namespace PomodoroForObsidian
         private bool _flashState = false;
         private AutoCompleteManager _autoCompleteManager;
         private DispatcherTimer _debounceTimer;
+        private DispatcherTimer _settingsSaveDebounceTimer;
         private PomodoroSessionManager _pomodoroSessionManager;
         private TagPickerWindow? _tagPickerWindow;
         private bool _isTagModeActive = false;
@@ -57,6 +58,10 @@ namespace PomodoroForObsidian
             _debounceTimer = new DispatcherTimer();
             _debounceTimer.Interval = TimeSpan.FromMilliseconds(300);
             _debounceTimer.Tick += DebounceTimer_Tick;
+
+            _settingsSaveDebounceTimer = new DispatcherTimer();
+            _settingsSaveDebounceTimer.Interval = TimeSpan.FromSeconds(2);
+            _settingsSaveDebounceTimer.Tick += SettingsSaveDebounceTimer_Tick;
 
             System.Diagnostics.Debug.WriteLine("[MiniWindow] Constructor called");
 
@@ -109,6 +114,13 @@ namespace PomodoroForObsidian
                 SetTimerRunning(false);
             };
             _pomodoroSessionManager.NegativeTimerTick += (s, t) => UpdateNegativeTimerText(t);
+
+            // Attach mouse wheel event to timer text for scroll adjustment
+            var timerText = this.FindName("MiniTimerText") as TextBlock;
+            if (timerText != null)
+            {
+                timerText.MouseWheel += MiniTimerText_MouseWheel;
+            }
 
             // Attach resize handle events
             AttachResizeHandleEvents();
@@ -192,6 +204,71 @@ namespace PomodoroForObsidian
             else if (!_pomodoroSessionManager.IsRunning && e.ClickCount == 2)
             {
                 TimerResetRequested?.Invoke(this, EventArgs.Empty);
+            }
+        }
+
+        private void MiniTimerText_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // Get current settings
+            var settings = AppSettings.Load();
+            int currentLength = settings.PomodoroTimerLength;
+
+            // Calculate new length (scroll up = +5min, scroll down = -5min)
+            int delta = e.Delta > 0 ? 5 : -5;
+            int newLength = currentLength + delta;
+
+            // Clamp to bounds (min 5, max 2400)
+            if (newLength < 5 || newLength > 2400)
+            {
+                return; // Do nothing if out of bounds
+            }
+
+            // Update settings in memory and save immediately
+            settings.PomodoroTimerLength = newLength;
+            settings.Save();
+            System.Diagnostics.Debug.WriteLine($"[MiniWindow] Timer length adjusted to {newLength} minutes");
+
+            // If timer is running, adjust the current time left
+            if (_pomodoroSessionManager.IsRunning)
+            {
+                _pomodoroSessionManager.AdjustTimerLength(delta);
+            }
+            else
+            {
+                // If not running, just update the display
+                SetTimer(TimeSpan.FromMinutes(newLength));
+            }
+
+            // Flash timer briefly for visual feedback
+            FlashTimerBriefly();
+
+            e.Handled = true;
+        }
+
+        private void SettingsSaveDebounceTimer_Tick(object sender, EventArgs e)
+        {
+            _settingsSaveDebounceTimer.Stop();
+            var settings = AppSettings.Load();
+            settings.Save();
+            System.Diagnostics.Debug.WriteLine("[MiniWindow] Settings saved after scroll adjustment");
+        }
+
+        private void FlashTimerBriefly()
+        {
+            var timerText = this.FindName("MiniTimerText") as TextBlock;
+            if (timerText != null)
+            {
+                var originalOpacity = timerText.Opacity;
+                timerText.Opacity = 0.5;
+
+                var flashTimer = new DispatcherTimer();
+                flashTimer.Interval = TimeSpan.FromMilliseconds(100);
+                flashTimer.Tick += (s, e) =>
+                {
+                    timerText.Opacity = originalOpacity;
+                    ((DispatcherTimer)s).Stop();
+                };
+                flashTimer.Start();
             }
         }
 
