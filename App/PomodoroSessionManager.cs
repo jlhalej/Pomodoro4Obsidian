@@ -60,22 +60,38 @@ namespace PomodoroForObsidian
             if (!_isRunning)
             {
                 var settings = AppSettings.Load();
-                if (string.IsNullOrEmpty(settings.CurrentSessionTimestamp))
+
+                // ALWAYS check if today's journal exists before starting (new or resumed session)
+                string journalFilePath;
+                bool journalExists = Utils.DoesTodayJournalExist(settings, out journalFilePath);
+
+                if (!journalExists)
                 {
-                    SetPomodoroLength(settings.PomodoroTimerLength); // Only reset timer for new session
-                    var newTimestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
-                    Utils.LogDebug(nameof(Start), $"Assigning new session timestamp: {newTimestamp}");
-                    settings.CurrentSessionTimestamp = newTimestamp;
-                    settings.CurrentSessionStartTime = DateTime.Now;
-                    settings.Save();
-                    Utils.LogDebug(nameof(Start), $"Saved session timestamp to settings: {settings.CurrentSessionTimestamp}");
-                    LogRunningSessionToObsidian(true);
-                    _updateTimer.Start();
+                    // Only notify once per day
+                    bool shouldNotify = !settings.LastJournalCheckDate.HasValue ||
+                                      settings.LastJournalCheckDate.Value.Date != DateTime.Now.Date;
+
+                    if (shouldNotify)
+                    {
+                        Utils.BubbleNotification($"Cannot start timer: Today's journal does not exist.\n\nPlease create it in Obsidian first:\n{journalFilePath}");
+                        settings.LastJournalCheckDate = DateTime.Now;
+                        settings.Save();
+                    }
+
+                    Utils.LogDebug(nameof(Start), $"Journal file does not exist: {journalFilePath}. Timer start blocked.");
+                    return; // Block timer start
                 }
-                else
-                {
-                    Utils.LogDebug(nameof(Start), $"Continuing session with existing timestamp: {settings.CurrentSessionTimestamp}");
-                }
+
+                // Always create new session timestamp
+                SetPomodoroLength(settings.PomodoroTimerLength);
+                var newTimestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+                Utils.LogDebug(nameof(Start), $"Assigning new session timestamp: {newTimestamp}");
+                settings.CurrentSessionTimestamp = newTimestamp;
+                settings.CurrentSessionStartTime = DateTime.Now;
+                settings.Save();
+                Utils.LogDebug(nameof(Start), $"Saved session timestamp to settings: {settings.CurrentSessionTimestamp}");
+                LogRunningSessionToObsidian(true);
+                _updateTimer.Start();
                 _lastTask = task;
                 _lastProject = project;
                 _isRunning = true;
@@ -104,27 +120,6 @@ namespace PomodoroForObsidian
                 // Reset timer in mini window and reset session timestamp/start time
                 ResetTimer();
                 ResetSessionTimestamp();
-                Stopped?.Invoke(this, EventArgs.Empty);
-            }
-        }
-
-        public void Pause()
-        {
-            Utils.LogDebug(nameof(Pause), $"Pause called. _isRunning={_isRunning}");
-            if (_isRunning)
-            {
-                _isRunning = false;
-                _timer.Stop();
-                _updateTimer.Stop();
-                StopNegativeTimer();
-                Utils.LogDebug(nameof(Pause), "Calling LogPausedSessionToObsidian");
-                LogPausedSessionToObsidian();
-
-                if (!string.IsNullOrEmpty(_lastTask))
-                {
-                    _taskHistoryRepository.AddOrUpdateTaskAsync(_lastTask);
-                }
-
                 Stopped?.Invoke(this, EventArgs.Empty);
             }
         }
@@ -159,8 +154,7 @@ namespace PomodoroForObsidian
                 }
                 else
                 {
-                    // Timer reached 0: log session, notify, start negative timer
-                    LogPausedSessionToObsidian();
+                    // Timer reached 0: notify and start negative countdown
                     Utils.BubbleNotification("Pomodoro completed.");
                     _reverseCountdown = true;
                     _reverseTime = TimeSpan.Zero;
@@ -297,11 +291,6 @@ namespace PomodoroForObsidian
                 File.WriteAllLines(journalFile, linesList);
                 Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Header not found, appended header and new session entry at end of journal file: {journalFile}");
             }
-        }
-
-        private void LogPausedSessionToObsidian()
-        {
-            LogRunningSessionToObsidian();
         }
 
         private void LogStoppedSessionToObsidian()

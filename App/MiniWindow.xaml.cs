@@ -59,13 +59,13 @@ namespace PomodoroForObsidian
             _debounceTimer.Tick += DebounceTimer_Tick;
 
             System.Diagnostics.Debug.WriteLine("[MiniWindow] Constructor called");
-            
+
             // Restore position and size
             if (_settings.MiniWindowLeft.HasValue && _settings.MiniWindowTop.HasValue)
             {
                 this.Left = _settings.MiniWindowLeft.Value;
                 this.Top = _settings.MiniWindowTop.Value;
-                
+
                 // Also restore size if available
                 if (_settings.MiniWindowWidth.HasValue && _settings.MiniWindowHeight.HasValue)
                 {
@@ -79,7 +79,7 @@ namespace PomodoroForObsidian
                 this.Left = (desktopWorkingArea.Width - this.Width) / 2;
                 this.Top = desktopWorkingArea.Bottom - this.Height - 10;
             }
-            
+
             var startStopBtn = this.FindName("MiniStartStopButton") as Button;
             if (startStopBtn != null)
                 startStopBtn.Click += MiniStartStopButton_Click;
@@ -103,7 +103,8 @@ namespace PomodoroForObsidian
 
             _pomodoroSessionManager.ReverseCountdownStarted += (s, e) => StartFlashing();
             _pomodoroSessionManager.Tick += (s, t) => UpdateTimerText(t);
-            _pomodoroSessionManager.Stopped += (s, e) => {
+            _pomodoroSessionManager.Stopped += (s, e) =>
+            {
                 StopFlashing();
                 SetTimerRunning(false);
             };
@@ -186,20 +187,7 @@ namespace PomodoroForObsidian
         {
             if (e.ClickCount == 1)
             {
-                if (_pomodoroSessionManager.IsRunning)
-                {
-                    _pomodoroSessionManager.Pause();
-                }
-                else
-                {
-                    // Resume if paused (session timestamp exists)
-                    var settings = AppSettings.Load();
-                    if (!_pomodoroSessionManager.IsRunning && !string.IsNullOrEmpty(settings.CurrentSessionTimestamp))
-                    {
-                        var task = MiniTaskText;
-                        _pomodoroSessionManager.Start(task, "");
-                    }
-                }
+                // Single-click: Do nothing (reserved for future functionality)
             }
             else if (!_pomodoroSessionManager.IsRunning && e.ClickCount == 2)
             {
@@ -254,7 +242,7 @@ namespace PomodoroForObsidian
             {
                 var text = textBox.Text;
                 var caretPos = textBox.CaretIndex;
-                
+
                 // Check if we're typing a "#" character
                 if (caretPos > 0 && text[caretPos - 1] == '#' && !_isTagModeActive)
                 {
@@ -269,7 +257,7 @@ namespace PomodoroForObsidian
                     DeactivateTagMode();
                 }
             }
-            
+
             _debounceTimer.Stop();
             _debounceTimer.Start();
         }
@@ -278,10 +266,10 @@ namespace PomodoroForObsidian
         {
             _isTagModeActive = true;
             _tagStartPosition = tagStartPos;
-            
+
             // Close any existing auto-complete popup
             AutoCompletePopup.IsOpen = false;
-            
+
             // Show tag picker window
             ShowTagPicker(textBox, tagStartPos);
         }
@@ -290,7 +278,7 @@ namespace PomodoroForObsidian
         {
             _isTagModeActive = false;
             _tagStartPosition = -1;
-            
+
             // Close tag picker if open
             if (_tagPickerWindow != null && _tagPickerWindow.IsVisible)
             {
@@ -305,7 +293,7 @@ namespace PomodoroForObsidian
             _tagPickerWindow = new TagPickerWindow();
             _tagPickerWindow.TagSelected += TagPickerWindow_TagSelected;
             _tagPickerWindow.Closed += TagPickerWindow_Closed;
-            
+
             // Position the tag picker near the text box
             var point = textBox.PointToScreen(new Point(0, textBox.ActualHeight));
             _tagPickerWindow.Left = point.X;

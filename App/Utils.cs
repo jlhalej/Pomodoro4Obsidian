@@ -20,6 +20,13 @@ namespace PomodoroForObsidian
             }
         }
 
+        public static bool DoesTodayJournalExist(AppSettings settings, out string journalFilePath)
+        {
+            string today = DateTime.Now.ToString(settings.JournalNoteFormat.Replace("YYYY", "yyyy").Replace("DD", "dd"), CultureInfo.InvariantCulture);
+            journalFilePath = Path.Combine(settings.ObsidianJournalPath, today + ".md");
+            return File.Exists(journalFilePath);
+        }
+
         public static void BubbleNotification(string message)
         {
             // Show a balloon notification from the tray icon if available

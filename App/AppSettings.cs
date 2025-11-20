@@ -24,6 +24,7 @@ namespace PomodoroForObsidian
         public bool DebugLogEnabled { get; set; } = false;
         public int MaximumSessionLength { get; set; } = 120;
         public string ObsidianVaultPath { get; set; } = string.Empty;
+        public DateTime? LastJournalCheckDate { get; set; } = null;
 
         // Taskbar management settings
         public bool TaskbarModificationEnabled { get; set; } = false;
