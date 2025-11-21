@@ -16,7 +16,7 @@ if ([string]::IsNullOrEmpty($Version)) {
         $projectContent = Get-Content $ProjectFile -Raw
         if ($projectContent -match '<Version>([^<]+)</Version>') {
             $Version = $matches[1]
-            Write-Host "📋 Auto-detected version from project file: $Version" -ForegroundColor Cyan
+            Write-Host "Auto-detected version from project file: $Version" -ForegroundColor Cyan
         } else {
             throw "Could not detect version from project file: $ProjectFile"
         }
@@ -25,7 +25,7 @@ if ([string]::IsNullOrEmpty($Version)) {
     }
 }
 
-Write-Host "🚀 Building Squirrel Release for Pomodoro4Obsidian v$Version" -ForegroundColor Green
+Write-Host "Building Squirrel Release for Pomodoro4Obsidian v$Version" -ForegroundColor Green
 
 # Set paths
 $AppDir = Join-Path (Split-Path $PSScriptRoot -Parent) "App"
@@ -33,21 +33,21 @@ $ReleaseDir = Join-Path (Split-Path $PSScriptRoot -Parent) "releases"
 $BuildDir = Join-Path $AppDir "bin\$Configuration\net8.0-windows"
 
 # Clean and create release directory
-Write-Host "📁 Setting up release directory..." -ForegroundColor Yellow
+Write-Host "Setting up release directory..." -ForegroundColor Yellow
 if (Test-Path $ReleaseDir) {
     Remove-Item $ReleaseDir -Recurse -Force
 }
 New-Item -Path $ReleaseDir -ItemType Directory -Force | Out-Null
 
 # Build the application
-Write-Host "🔨 Building application..." -ForegroundColor Yellow
+Write-Host "Building application..." -ForegroundColor Yellow
 Push-Location $AppDir
 try {
     & dotnet build --configuration $Configuration --verbosity minimal
     if ($LASTEXITCODE -ne 0) {
         throw "Build failed with exit code $LASTEXITCODE"
     }
-    Write-Host "✅ Build completed successfully" -ForegroundColor Green
+    Write-Host "Build completed successfully" -ForegroundColor Green
 }
 finally {
     Pop-Location
@@ -60,11 +60,11 @@ if (-not (Test-Path $BuildDir)) {
 
 # Copy build output to release staging area
 $StagingDir = Join-Path $ReleaseDir "staging"
-Write-Host "📦 Copying build output to staging..." -ForegroundColor Yellow
+Write-Host "Copying build output to staging..." -ForegroundColor Yellow
 Copy-Item -Path $BuildDir -Destination $StagingDir -Recurse -Force
 
 # Create Squirrel package using Squirrel
-Write-Host "📋 Creating Squirrel package..." -ForegroundColor Yellow
+Write-Host "Creating Squirrel package..." -ForegroundColor Yellow
 Push-Location $ReleaseDir
 try {
     # Find Squirrel executable in NuGet packages
@@ -101,15 +101,15 @@ finally {
 }
 
 # List generated files
-Write-Host "📋 Release files generated:" -ForegroundColor Green
+Write-Host "Release files generated:" -ForegroundColor Green
 Get-ChildItem $ReleaseDir -Recurse -File | ForEach-Object {
     $relativePath = $_.FullName.Substring($ReleaseDir.Length + 1)
-    Write-Host "  📄 $relativePath" -ForegroundColor Cyan
+    Write-Host "  $relativePath" -ForegroundColor Cyan
 }
 
 Write-Host ""
-Write-Host "✅ Squirrel release v$Version created successfully!" -ForegroundColor Green
-Write-Host "📁 Release files located in: $ReleaseDir" -ForegroundColor Yellow
+Write-Host "Squirrel release v$Version created successfully!" -ForegroundColor Green
+Write-Host "Release files located in: $ReleaseDir" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Magenta
 Write-Host "1. Upload the generated files to GitHub Releases" -ForegroundColor White

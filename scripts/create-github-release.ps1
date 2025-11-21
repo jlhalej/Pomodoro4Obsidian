@@ -8,7 +8,7 @@ param(
     [string]$RepoName = "Pomodoro4Obsidian"
 )
 
-Write-Host "🚀 Creating GitHub Release v$Version for $RepoOwner/$RepoName" -ForegroundColor Green
+Write-Host "Creating GitHub Release v$Version for $RepoOwner/$RepoName" -ForegroundColor Green
 
 # Set paths
 $ReleaseDir = Join-Path (Split-Path $PSScriptRoot -Parent) "releases\Releases"
@@ -21,18 +21,18 @@ $RequiredFiles = @(
     "RELEASES"
 )
 
-Write-Host "📋 Verifying release files..." -ForegroundColor Yellow
+Write-Host "Verifying release files..." -ForegroundColor Yellow
 foreach ($file in $RequiredFiles) {
     $filePath = Join-Path $ReleaseDir $file
     if (-not (Test-Path $filePath)) {
         throw "Required file not found: $filePath"
     }
     $fileSize = (Get-Item $filePath).Length
-    Write-Host "  ✅ $file ($([math]::Round($fileSize / 1MB, 2)) MB)" -ForegroundColor Green
+    Write-Host "  OK $file ($([math]::Round($fileSize / 1MB, 2)) MB)" -ForegroundColor Green
 }
 
 # Create GitHub release using GitHub CLI (gh)
-Write-Host "🏷️ Creating GitHub release $TagName..." -ForegroundColor Yellow
+Write-Host "Creating GitHub release $TagName..." -ForegroundColor Yellow
 
 try {
     # Check if gh CLI is available
@@ -48,17 +48,11 @@ try {
 
 $ReleaseNotes
 
-## 🚀 New Features
-- **Auto-Update System**: Automatic background checking for updates every 24 hours
-- **Manual Update Check**: Check for updates on-demand via Settings > Updates tab
-- **Seamless Installation**: Download and install updates with automatic restart
-- **Update Preferences**: Control automatic update behavior in Settings
+## Installation
+- **New Users**: Download and run ``PomodoroForObsidianSetup.exe``
+- **Existing Users**: The app will auto-update to this version
 
-## 🛠️ Installation
-- **New Users**: Download and run `PomodoroForObsidianSetup.exe`
-- **Existing Users**: This is the first Squirrel-enabled release. Install via Setup.exe to enable auto-updates
-
-## 📋 Technical Details
+## Technical Details
 - Built with Clowd.Squirrel for reliable auto-update functionality
 - Supports delta updates for efficient bandwidth usage
 - GitHub-integrated release distribution
@@ -70,37 +64,38 @@ $ReleaseNotes
         --repo "$RepoOwner/$RepoName" `
         --title "Pomodoro4Obsidian v$Version" `
         --notes $releaseNotesFull `
-        --latest `
-        (Join-Path $ReleaseDir "PomodoroForObsidian-$Version-full.nupkg") `
-        (Join-Path $ReleaseDir "PomodoroForObsidianSetup.exe") `
-        (Join-Path $ReleaseDir "RELEASES")
+        --latest `        --latest `
+    (Join-Path $ReleaseDir "PomodoroForObsidian-$Version-full.nupkg") `"PomodoroForObsidian-$Version-full.nupkg") `
+        (Join-Path $ReleaseDir "PomodoroForObsidianSetup.exe") `PomodoroForObsidianSetup.exe") `
+(Join-Path $ReleaseDir "RELEASES")S")
 
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ GitHub release created successfully!" -ForegroundColor Green
-        Write-Host "🔗 Release URL: https://github.com/$RepoOwner/$RepoName/releases/tag/$TagName" -ForegroundColor Cyan
-    } else {
-        throw "GitHub release creation failed with exit code $LASTEXITCODE"
-    }
+        Write-Host "GitHub release created successfully!" -ForegroundColor Green "GitHub release created successfully!" -ForegroundColor Green
+        Write-Host "Release URL: https://github.com/$RepoOwner/$RepoName/releases/tag/$TagName" -ForegroundColor Cyanleases/tag/$TagName" -ForegroundColor Cyan
+}
+else {
+    throw "GitHub release creation failed with exit code $LASTEXITCODE"led with exit code $LASTEXITCODE"
+    }    }
 }
 catch {
-    Write-Host "❌ Error creating GitHub release: $_" -ForegroundColor Red
-    Write-Host ""
+    Write-Host "Error creating GitHub release: $_" -ForegroundColor Red
+    Write-Host ""st ""
     Write-Host "Manual upload instructions:" -ForegroundColor Yellow
-    Write-Host "1. Go to https://github.com/$RepoOwner/$RepoName/releases/new" -ForegroundColor White
-    Write-Host "2. Tag: $TagName" -ForegroundColor White
-    Write-Host "3. Title: Pomodoro4Obsidian v$Version" -ForegroundColor White
+    Write-Host "1. Go to https://github.com/$RepoOwner/$RepoName/releases/new" -ForegroundColor Whiterite-Host "1. Go to https://github.com/$RepoOwner/$RepoName/releases/new" -ForegroundColor White
+    Write-Host "2. Tag: $TagName" -ForegroundColor White   Write-Host "2. Tag: $TagName" -ForegroundColor White
+    Write-Host "3. Title: Pomodoro4Obsidian v$Version" -ForegroundColor Whitete-Host "3. Title: Pomodoro4Obsidian v$Version" -ForegroundColor White
     Write-Host "4. Upload these files:" -ForegroundColor White
-    foreach ($file in $RequiredFiles) {
+    foreach ($file in $RequiredFiles) {e in $RequiredFiles) {
         Write-Host "   - $file" -ForegroundColor Cyan
     }
-    Write-Host "5. Mark as latest release" -ForegroundColor White
+    Write-Host "5. Mark as latest release" -ForegroundColor Whitelor White
     exit 1
 }
 
 Write-Host ""
-Write-Host "🎉 Release v$Version published successfully!" -ForegroundColor Green
+Write-Host "Release v$Version published successfully!" -ForegroundColor Green-Host "Release v$Version published successfully!" -ForegroundColor Green
 Write-Host ""
-Write-Host "Next steps:" -ForegroundColor Magenta
-Write-Host "1. Test the update functionality in the application" -ForegroundColor White
-Write-Host "2. Verify that UpdateManager can detect the new release" -ForegroundColor White
-Write-Host "3. Test the complete update workflow" -ForegroundColor White
+Write-Host "Next steps:" -ForegroundColor Magenta "Next steps:" -ForegroundColor Magenta
+Write-Host "1. Test the update functionality in the application" -ForegroundColor Whiterite-Host "1. Test the update functionality in the application" -ForegroundColor White
+Write-Host "2. Verify that UpdateManager can detect the new release" -ForegroundColor WhiteWrite-Host "2. Verify that UpdateManager can detect the new release" -ForegroundColor White
+Write-Host "3. Test the complete update workflow" -ForegroundColor White. Test the complete update workflow" -ForegroundColor White

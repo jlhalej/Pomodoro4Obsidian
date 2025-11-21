@@ -82,13 +82,7 @@ powershell -File .\scripts\build-squirrel-release.ps1 -Version "1.3.2"
 
 ## 🧹 Cleanup
 
-### Move Build Artifacts
-
-```powershell
-Move-Item -Path ".\releases" -Destination ".\NOT_GITHUB\releases_1.3.2" -Force
-```
-
-This keeps the repository clean by moving build artifacts to the ignored folder.
+Build artifacts are automatically cleaned up during the release process. The `releases` folder is already in `.gitignore` and will not be committed.
 
 ## 📝 Commit Changes
 
