@@ -18,9 +18,9 @@ Before creating a release, ensure you have:
 
 1. **Update the project version** in `App/PomodoroForObsidian.csproj`:
    ```xml
-   <Version>1.3.2</Version>
-   <AssemblyVersion>1.3.2.0</AssemblyVersion>
-   <FileVersion>1.3.2.0</FileVersion>
+   <Version>1.5.5</Version>
+   <AssemblyVersion>1.5.5.0</AssemblyVersion>
+   <FileVersion>1.5.5.0</FileVersion>
    ```
 
 2. **Test the build** to ensure everything compiles:
@@ -36,13 +36,10 @@ Before creating a release, ensure you have:
 From the repository root directory:
 
 ```powershell
-.\scripts\build-squirrel-release.ps1 -Version "1.3.2"
+.\scripts\build-squirrel-release.ps1
 ```
 
-**Note:** If the script opens in a text editor instead of running, you may need to execute it explicitly with PowerShell:
-```powershell
-powershell -File .\scripts\build-squirrel-release.ps1 -Version "1.3.2"
-```
+**Note:** The script automatically detects the version from `PomodoroForObsidian.csproj`. You can also specify it manually with `-Version "1.5.5"` if needed.
 
 **What this does:**
 - Builds the application in Release configuration
@@ -53,44 +50,42 @@ powershell -File .\scripts\build-squirrel-release.ps1 -Version "1.3.2"
 
 **Expected output:**
 ```
-✅ Squirrel release v1.3.2 created successfully!
-📋 Release files generated:
-  📄 Releases\PomodoroForObsidian-1.3.2-full.nupkg
-  📄 Releases\PomodoroForObsidianSetup.exe
-  📄 Releases\RELEASES
+Squirrel release v1.5.5 created successfully!
+Release files located in: C:\...\releases
+  Releases\PomodoroForObsidian-1.5.5-full.nupkg
+  Releases\PomodoroForObsidianSetup.exe
+  Releases\RELEASES
 ```
 
 ### 2. Create GitHub Release
 
 ```powershell
-.\scripts\create-github-release.ps1 -Version "1.3.2" -ReleaseNotes "Your release notes here"
+.\scripts\create-github-release.ps1 -Version "1.5.5" -ReleaseNotes "Added scroll over timer to change the pomodoro session. Fixed minor bugs."
 ```
 
-**Release Notes Template:**
-```
-## ✨ What's New in v1.3.2
-- Feature: Description of new features
-- Fix: Description of bug fixes
-- Improvement: Description of improvements
-```
+**Release Notes Format:**
+Provide a brief, clear description of changes. The script will format it properly for GitHub.
 
 **What this does:**
-- Creates a new GitHub release with tag v1.3.2
-- Uploads the installer files as release assets
+- Creates a new GitHub release with tag v1.5.5
+- Uploads the installer files (Setup.exe, .nupkg, RELEASES)
 - Marks the release as "Latest"
 - Makes it available for the auto-update system
+- Returns the release URL for verification
 
 ## 🧹 Cleanup
 
 Build artifacts are automatically cleaned up during the release process. The `releases` folder is already in `.gitignore` and will not be committed.
 
-## 📝 Commit Changes
+## 📝 Commit Changes (If Needed)
+
+If you made changes to the version number or other files, commit them:
 
 ### 1. Stage and Commit
 
 ```powershell
-git add .
-git commit -m "v1.3.2: Release version"
+git add App/PomodoroForObsidian.csproj
+git commit -m "Bump version to 1.5.5"
 ```
 
 ### 2. Push to GitHub
@@ -100,6 +95,8 @@ git push origin master
 ```
 
 **Note:** The Git tag is automatically created by the GitHub release script, so no manual tagging is needed.
+
+**Important:** You can commit and push either before or after creating the GitHub release. The release artifacts (in `/releases/`) are in `.gitignore` and won't be committed.
 
 ## ✅ Post-Release Verification
 
