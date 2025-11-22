@@ -7,7 +7,7 @@
         ShowInTaskbar="False"
         Topmost="True"
         Width="340" Height="36"
-        MinWidth="220" MinHeight="36"
+        MinWidth="220" MinHeight="36" MaxHeight="36"
         WindowStartupLocation="Manual"
         Title="Mini Pomodoro">
     <Window.Resources>
@@ -98,15 +98,8 @@
                     </ListBox>
                 </Popup>
         
-                <!-- Edge resize handles -->        <Border x:Name="ResizeHandleLeft" Width="6" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" MouseDown="ResizeLeft_MouseDown" />
+                <!-- Edge resize handles (horizontal only) -->
+        <Border x:Name="ResizeHandleLeft" Width="6" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" MouseDown="ResizeLeft_MouseDown" />
         <Border x:Name="ResizeHandleRight" Width="6" HorizontalAlignment="Right" VerticalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" MouseDown="ResizeRight_MouseDown" />
-        <Border x:Name="ResizeHandleTop" Height="6" VerticalAlignment="Top" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS" MouseDown="ResizeTop_MouseDown" />
-        <Border x:Name="ResizeHandleBottom" Height="6" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS" MouseDown="ResizeBottom_MouseDown" />
-        
-        <!-- Corner resize handles -->
-        <Border x:Name="ResizeHandleTopLeft" Width="6" Height="6" HorizontalAlignment="Left" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNWSE" MouseDown="ResizeTopLeft_MouseDown" />
-        <Border x:Name="ResizeHandleTopRight" Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" Cursor="SizeNESW" MouseDown="ResizeTopRight_MouseDown" />
-        <Border x:Name="ResizeHandleBottomLeft" Width="6" Height="6" HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNESW" MouseDown="ResizeBottomLeft_MouseDown" />
-        <Border x:Name="ResizeHandleBottomRight" Width="6" Height="6" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="Transparent" Cursor="SizeNWSE" MouseDown="ResizeBottomRight_MouseDown" />
     </Grid>
 </Window>

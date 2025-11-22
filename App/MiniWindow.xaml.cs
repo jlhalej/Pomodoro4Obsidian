@@ -38,12 +38,6 @@ namespace PomodoroForObsidian
         private const int WM_NCLBUTTONDOWN = 0x00A1;
         private const int HTLEFT = 10;
         private const int HTRIGHT = 11;
-        private const int HTTOP = 12;
-        private const int HTTOPLEFT = 13;
-        private const int HTTOPRIGHT = 14;
-        private const int HTBOTTOM = 15;
-        private const int HTBOTTOMLEFT = 16;
-        private const int HTBOTTOMRIGHT = 17;
 
         public MiniWindow(AppSettings settings, AutoCompleteManager autoCompleteManager, PomodoroSessionManager pomodoroSessionManager)
         {
@@ -788,21 +782,9 @@ namespace PomodoroForObsidian
         {
             var left = this.FindName("ResizeHandleLeft") as Border;
             var right = this.FindName("ResizeHandleRight") as Border;
-            var top = this.FindName("ResizeHandleTop") as Border;
-            var bottom = this.FindName("ResizeHandleBottom") as Border;
-            var topLeft = this.FindName("ResizeHandleTopLeft") as Border;
-            var topRight = this.FindName("ResizeHandleTopRight") as Border;
-            var bottomLeft = this.FindName("ResizeHandleBottomLeft") as Border;
-            var bottomRight = this.FindName("ResizeHandleBottomRight") as Border;
 
             if (left != null) left.MouseDown += ResizeLeft_MouseDown;
             if (right != null) right.MouseDown += ResizeRight_MouseDown;
-            if (top != null) top.MouseDown += ResizeTop_MouseDown;
-            if (bottom != null) bottom.MouseDown += ResizeBottom_MouseDown;
-            if (topLeft != null) topLeft.MouseDown += ResizeTopLeft_MouseDown;
-            if (topRight != null) topRight.MouseDown += ResizeTopRight_MouseDown;
-            if (bottomLeft != null) bottomLeft.MouseDown += ResizeBottomLeft_MouseDown;
-            if (bottomRight != null) bottomRight.MouseDown += ResizeBottomRight_MouseDown;
         }
 
         private void MiniWindow_Loaded(object sender, RoutedEventArgs e)
@@ -827,53 +809,7 @@ namespace PomodoroForObsidian
             }
         }
 
-        private void ResizeTop_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                ResizeWindow(HTTOP);
-            }
-        }
 
-        private void ResizeBottom_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                ResizeWindow(HTBOTTOM);
-            }
-        }
-
-        private void ResizeTopLeft_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                ResizeWindow(HTTOPLEFT);
-            }
-        }
-
-        private void ResizeTopRight_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                ResizeWindow(HTTOPRIGHT);
-            }
-        }
-
-        private void ResizeBottomLeft_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                ResizeWindow(HTBOTTOMLEFT);
-            }
-        }
-
-        private void ResizeBottomRight_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                ResizeWindow(HTBOTTOMRIGHT);
-            }
-        }
 
         private void ResizeWindow(int direction)
         {

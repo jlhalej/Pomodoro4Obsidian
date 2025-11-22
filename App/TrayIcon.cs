@@ -25,6 +25,7 @@ namespace PomodoroForObsidian
         private PomodoroSessionManager _pomodoroSessionManager;
         private AppSettings _settings;
         private AutoCompleteManager _autoCompleteManager;
+        private TaskbarManager? _taskbarManager;
 
         private Color PrimaryColor = Color.Purple;
         private Color SecondaryColor = Color.FromArgb(40, 40, 40);
@@ -33,11 +34,12 @@ namespace PomodoroForObsidian
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         extern static bool DestroyIcon(IntPtr handle);
 
-        public TrayIcon(PomodoroSessionManager pomodoroSessionManager, AppSettings settings, AutoCompleteManager autoCompleteManager)
+        public TrayIcon(PomodoroSessionManager pomodoroSessionManager, AppSettings settings, AutoCompleteManager autoCompleteManager, TaskbarManager? taskbarManager = null)
         {
             _pomodoroSessionManager = pomodoroSessionManager;
             _settings = settings;
             _autoCompleteManager = autoCompleteManager;
+            _taskbarManager = taskbarManager;
 
             Utils.LogDebug("TrayIcon", "Initializing TrayIcon");
 
@@ -80,6 +82,7 @@ namespace PomodoroForObsidian
             _notifyIcon.ContextMenuStrip.Items.Add("Exit", null, (s, e) => ExitApp());
 
             _notifyIcon.MouseClick += NotifyIcon_MouseClick;
+            _notifyIcon.MouseDoubleClick += NotifyIcon_MouseDoubleClick;
 
             try
             {
@@ -248,6 +251,51 @@ namespace PomodoroForObsidian
                     Utils.LogDebug("TrayIcon", "Stopping blinking due to mouse click during reverse countdown");
                     StopBlinking();
                 }
+            }
+        }
+
+        private void NotifyIcon_MouseDoubleClick(object? sender, MouseEventArgs e)
+        {
+            Utils.LogDebug("TrayIcon", $"MouseDoubleClick detected: {e.Button}");
+            if (e.Button == MouseButtons.Left)
+            {
+                ResetMiniWindowPosition();
+            }
+        }
+
+        private void ResetMiniWindowPosition()
+        {
+            Utils.LogDebug("TrayIcon", "ResetMiniWindowPosition called");
+            var app = (App)System.Windows.Application.Current;
+            var miniWindow = app.GetMiniWindow();
+
+            if (miniWindow == null)
+            {
+                Utils.LogDebug("TrayIcon", "Cannot reset position: miniWindow is null");
+                return;
+            }
+
+            if (_taskbarManager != null && _settings.TaskbarModificationEnabled)
+            {
+                Utils.LogDebug("TrayIcon", "Taskbar modification enabled, using ideal position");
+                var idealPosition = _taskbarManager.GetIdealMiniWindowPosition(miniWindow.Width, miniWindow.Height);
+                miniWindow.Dispatcher.Invoke(() =>
+                {
+                    miniWindow.Left = idealPosition.X;
+                    miniWindow.Top = idealPosition.Y;
+                    Utils.LogDebug("TrayIcon", $"Mini window position reset to notch position: X={idealPosition.X}, Y={idealPosition.Y}");
+                });
+            }
+            else
+            {
+                Utils.LogDebug("TrayIcon", "Taskbar modification disabled, using default centered position");
+                miniWindow.Dispatcher.Invoke(() =>
+                {
+                    var desktopWorkingArea = System.Windows.SystemParameters.WorkArea;
+                    miniWindow.Left = (desktopWorkingArea.Width - miniWindow.Width) / 2;
+                    miniWindow.Top = desktopWorkingArea.Bottom - miniWindow.Height - 10;
+                    Utils.LogDebug("TrayIcon", $"Mini window position reset to default: X={miniWindow.Left}, Y={miniWindow.Top}");
+                });
             }
         }
 

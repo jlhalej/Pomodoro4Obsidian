@@ -44,9 +44,8 @@ namespace PomodoroForObsidian
             _autoCompleteManager = new AutoCompleteManager(_taskHistoryRepository);
             _pomodoroSessionManager = new PomodoroSessionManager(_taskHistoryRepository);
 
-            _trayIcon = new TrayIcon(_pomodoroSessionManager, _settings, _autoCompleteManager);
-
             _taskbarManager = new TaskbarManager();
+            _trayIcon = new TrayIcon(_pomodoroSessionManager, _settings, _autoCompleteManager, _taskbarManager);
 
             if (_settings != null && _taskbarManager != null)
             {
