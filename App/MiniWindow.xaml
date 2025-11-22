@@ -66,7 +66,10 @@
                 <TextBlock x:Name="MiniTimerText" Grid.Column="1" Text="25:00" 
                            Foreground="White" FontSize="14" FontWeight="Bold" 
                            VerticalAlignment="Center" HorizontalAlignment="Center" 
-                           Width="50" Height="22" Margin="4,0,4,0" />
+                           TextAlignment="Center"
+                           Width="65" Height="22" Margin="4,0,2,0" 
+                           PreviewMouseDown="MiniTimerText_PreviewMouseDown" 
+                           Cursor="Hand" />
                 <Button x:Name="MiniStartStopButton" Grid.Column="2" Content="▶" 
                         Width="22" Height="22" 
                         Background="#d18be9" Foreground="White" 

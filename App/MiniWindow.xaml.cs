@@ -14,7 +14,6 @@ namespace PomodoroForObsidian
     public partial class MiniWindow : Window
     {
         public event EventHandler? TimerStartStopClicked;
-        public event EventHandler? TimerResetRequested;
         private TimeSpan _timeLeft;
         private AppSettings _settings;
         private DispatcherTimer _flashTimer;
@@ -169,7 +168,7 @@ namespace PomodoroForObsidian
             _timeLeft = time;
             var timerText = this.FindName("MiniTimerText") as TextBlock;
             if (timerText != null)
-                timerText.Text = _timeLeft.ToString(@"mm\:ss");
+                timerText.Text = FormatTimeSpan(_timeLeft);
         }
 
         public void SetTimerRunning(bool running)
@@ -189,29 +188,97 @@ namespace PomodoroForObsidian
             }
             else
             {
+                // Set the timer length to the current in-memory value before starting
+                // This ensures rapid timer adjustments are used even if not yet saved to disk
+                _pomodoroSessionManager.SetPomodoroLength(_settings.PomodoroTimerLength);
+
                 var task = MiniTaskText;
                 _pomodoroSessionManager.Start(task, "");
             }
             TimerStartStopClicked?.Invoke(this, EventArgs.Empty);
         }
 
-        private void MiniTimerText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void MiniTimerText_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ClickCount == 1)
+            int delta = 0;
+
+            if (e.ChangedButton == MouseButton.Left)
             {
-                // Single-click: Do nothing (reserved for future functionality)
+                // Left-click: Increase timer
+                delta = 5; // Default 5 minutes
+
+                if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt)
+                {
+                    delta = 30; // Alt key: 30 minutes
+                }
+                else if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+                {
+                    delta = 10; // Shift key: 10 minutes
+                }
             }
-            else if (!_pomodoroSessionManager.IsRunning && e.ClickCount == 2)
+            else if (e.ChangedButton == MouseButton.Right)
             {
-                TimerResetRequested?.Invoke(this, EventArgs.Empty);
+                // Right-click: Decrease timer
+                delta = -5; // Default -5 minutes
+
+                if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt)
+                {
+                    delta = -30; // Alt key: -30 minutes
+                }
+                else if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+                {
+                    delta = -10; // Shift key: -10 minutes
+                }
             }
+
+            if (delta != 0)
+            {
+                AdjustTimer(delta);
+                e.Handled = true;
+            }
+        }
+
+        private void AdjustTimer(int deltaMinutes)
+        {
+            // Use in-memory settings for fast updates
+            int currentLength = _settings.PomodoroTimerLength;
+
+            // Calculate new length
+            int newLength = currentLength + deltaMinutes;
+
+            // Clamp to bounds (min 5, max 2400)
+            if (newLength < 5 || newLength > 2400)
+            {
+                return; // Do nothing if out of bounds
+            }
+
+            // Update settings in memory
+            _settings.PomodoroTimerLength = newLength;
+            System.Diagnostics.Debug.WriteLine($"[MiniWindow] Timer length adjusted to {newLength} minutes (delta: {deltaMinutes})");
+
+            // If timer is running, adjust the current time left
+            if (_pomodoroSessionManager.IsRunning)
+            {
+                _pomodoroSessionManager.AdjustTimerLength(deltaMinutes);
+            }
+            else
+            {
+                // If not running, just update the display
+                SetTimer(TimeSpan.FromMinutes(newLength));
+            }
+
+            // Flash timer briefly for visual feedback
+            FlashTimerBriefly();
+
+            // Debounce the save operation - only save after user stops clicking
+            _settingsSaveDebounceTimer.Stop();
+            _settingsSaveDebounceTimer.Start();
         }
 
         private void MiniTimerText_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            // Get current settings
-            var settings = AppSettings.Load();
-            int currentLength = settings.PomodoroTimerLength;
+            // Use in-memory settings for fast updates
+            int currentLength = _settings.PomodoroTimerLength;
 
             // Calculate new length (scroll up = +5min, scroll down = -5min)
             int delta = e.Delta > 0 ? 5 : -5;
@@ -223,9 +290,8 @@ namespace PomodoroForObsidian
                 return; // Do nothing if out of bounds
             }
 
-            // Update settings in memory and save immediately
-            settings.PomodoroTimerLength = newLength;
-            settings.Save();
+            // Update settings in memory
+            _settings.PomodoroTimerLength = newLength;
             System.Diagnostics.Debug.WriteLine($"[MiniWindow] Timer length adjusted to {newLength} minutes");
 
             // If timer is running, adjust the current time left
@@ -242,15 +308,41 @@ namespace PomodoroForObsidian
             // Flash timer briefly for visual feedback
             FlashTimerBriefly();
 
+            // Debounce the save operation
+            _settingsSaveDebounceTimer.Stop();
+            _settingsSaveDebounceTimer.Start();
+
             e.Handled = true;
         }
 
         private void SettingsSaveDebounceTimer_Tick(object sender, EventArgs e)
         {
             _settingsSaveDebounceTimer.Stop();
-            var settings = AppSettings.Load();
-            settings.Save();
-            System.Diagnostics.Debug.WriteLine("[MiniWindow] Settings saved after scroll adjustment");
+            _settings.Save();
+            System.Diagnostics.Debug.WriteLine("[MiniWindow] Settings saved after timer adjustment");
+
+            // Show notification with the new timer length
+            string timeDisplay = FormatMinutesForNotification(_settings.PomodoroTimerLength);
+            Utils.BubbleNotification($"Timer set to {timeDisplay}");
+        }
+
+        private string FormatMinutesForNotification(int totalMinutes)
+        {
+            if (totalMinutes < 60)
+            {
+                return $"{totalMinutes} minute{(totalMinutes != 1 ? "s" : "")}";
+            }
+            else if (totalMinutes % 60 == 0)
+            {
+                int hours = totalMinutes / 60;
+                return $"{hours} hour{(hours != 1 ? "s" : "")}";
+            }
+            else
+            {
+                int hours = totalMinutes / 60;
+                int minutes = totalMinutes % 60;
+                return $"{hours}h {minutes}m";
+            }
         }
 
         private void FlashTimerBriefly()
@@ -660,11 +752,11 @@ namespace PomodoroForObsidian
             {
                 if (_pomodoroSessionManager.IsReverseCountdown)
                 {
-                    timerText.Text = "-" + t.Negate().ToString(@"mm\:ss");
+                    timerText.Text = "-" + FormatTimeSpan(t.Negate());
                 }
                 else
                 {
-                    timerText.Text = t.ToString(@"mm\:ss");
+                    timerText.Text = FormatTimeSpan(t);
                 }
             }
         }
@@ -674,7 +766,21 @@ namespace PomodoroForObsidian
             var timerText = this.FindName("MiniTimerText") as TextBlock;
             if (timerText != null)
             {
-                timerText.Text = "-" + t.ToString(@"mm\:ss");
+                timerText.Text = "-" + FormatTimeSpan(t);
+            }
+        }
+
+        private string FormatTimeSpan(TimeSpan t)
+        {
+            // For times under 1 hour (60 minutes), use mm:ss format
+            // For times 1 hour and over, use h:mm:ss format
+            if (t.TotalMinutes < 60)
+            {
+                return t.ToString(@"mm\:ss");
+            }
+            else
+            {
+                return t.ToString(@"h\:mm\:ss");
             }
         }
 

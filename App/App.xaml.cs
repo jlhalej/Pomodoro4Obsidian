@@ -131,7 +131,6 @@ namespace PomodoroForObsidian
             if (_miniWindow == null) return;
 
             _miniWindow.TimerStartStopClicked += (s, e) => { };
-            _miniWindow.TimerResetRequested += (s, e) => _pomodoroSessionManager?.ResetTimer();
 
             if (_pomodoroSessionManager != null)
             {

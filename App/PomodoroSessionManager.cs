@@ -116,7 +116,7 @@ namespace PomodoroForObsidian
                 }
 
                 // Always create new session timestamp
-                SetPomodoroLength(settings.PomodoroTimerLength);
+                // Note: SetPomodoroLength is now called before Start() to use in-memory value
                 var newTimestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
                 Utils.LogDebug(nameof(Start), $"Assigning new session timestamp: {newTimestamp}");
                 settings.CurrentSessionTimestamp = newTimestamp;
@@ -159,9 +159,8 @@ namespace PomodoroForObsidian
 
         public void ResetTimer()
         {
-            // Reload settings to get the latest pomodoro timer length
-            var settings = AppSettings.Load();
-            _pomodoroLength = settings.PomodoroTimerLength;
+            // Use the current in-memory _pomodoroLength value
+            // (Don't reload from disk to respect recent adjustments)
             _timeLeft = TimeSpan.FromMinutes(_pomodoroLength);
             _isRunning = false;
             _timer.Stop();

@@ -37,8 +37,8 @@ namespace PomodoroForObsidian
             ObsidianJournalPathTextBox.Text = _settings.ObsidianJournalPath;
             ObsidianVaultPathTextBox.Text = _settings.ObsidianVaultPath;
             JournalNoteFormatTextBox.Text = _settings.JournalNoteFormat;
-            PomodoroTimerLengthTextBox.Text = _settings.PomodoroTimerLength.ToString();
-            MaximumSessionLengthTextBox.Text = _settings.MaximumSessionLength.ToString();
+            PomodoroTimerLengthTextBox.Text = FormatMinutesToTimeString(_settings.PomodoroTimerLength);
+            MaximumSessionLengthTextBox.Text = FormatMinutesToTimeString(_settings.MaximumSessionLength);
             HeaderTextBox.Text = string.IsNullOrWhiteSpace(_settings.Header) ? "# Pomodoro Sessions" : _settings.Header;
 
             // Taskbar settings
@@ -253,14 +253,29 @@ namespace PomodoroForObsidian
             _settings.ObsidianJournalPath = ObsidianJournalPathTextBox.Text;
             _settings.ObsidianVaultPath = ObsidianVaultPathTextBox.Text;
             _settings.JournalNoteFormat = JournalNoteFormatTextBox.Text;
-            if (int.TryParse(PomodoroTimerLengthTextBox.Text, out int length) && length > 0)
+
+            // Parse Pomodoro Timer Length from HH:MM:SS format
+            if (TryParseTimeStringToMinutes(PomodoroTimerLengthTextBox.Text, out int length) && length > 0)
             {
                 _settings.PomodoroTimerLength = length;
             }
-            if (int.TryParse(MaximumSessionLengthTextBox.Text, out int maxLength) && maxLength >= 1 && maxLength <= 2400)
+            else
+            {
+                MessageBox.Show("Please enter a valid time format for Pomodoro Timer Length (HH:MM:SS).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Parse Maximum Session Length from HH:MM:SS format
+            if (TryParseTimeStringToMinutes(MaximumSessionLengthTextBox.Text, out int maxLength) && maxLength >= 1 && maxLength <= 2400)
             {
                 _settings.MaximumSessionLength = maxLength;
             }
+            else
+            {
+                MessageBox.Show("Please enter a valid time format for Maximum Session Length (HH:MM:SS, 1-2400 minutes).", "Invalid Value", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             _settings.Header = string.IsNullOrWhiteSpace(HeaderTextBox.Text) ? "# Pomodoro Sessions" : HeaderTextBox.Text;
 
             // Save taskbar settings
@@ -484,6 +499,41 @@ namespace PomodoroForObsidian
                 UpdateProgressBar.Value = progress;
                 UpdateProgressLabel.Text = $"{progress}%";
             });
+        }
+
+        #endregion
+
+        #region Time Format Helper Methods
+
+        private string FormatMinutesToTimeString(int totalMinutes)
+        {
+            int hours = totalMinutes / 60;
+            int minutes = totalMinutes % 60;
+            return $"{hours:D2}:{minutes:D2}:00";
+        }
+
+        private bool TryParseTimeStringToMinutes(string timeString, out int totalMinutes)
+        {
+            totalMinutes = 0;
+
+            if (string.IsNullOrWhiteSpace(timeString))
+                return false;
+
+            // Try to parse HH:MM:SS format
+            if (TimeSpan.TryParse(timeString, out TimeSpan timeSpan))
+            {
+                totalMinutes = (int)timeSpan.TotalMinutes;
+                return true;
+            }
+
+            // Fallback: try to parse as plain number (minutes)
+            if (int.TryParse(timeString, out int minutes))
+            {
+                totalMinutes = minutes;
+                return true;
+            }
+
+            return false;
         }
 
         #endregion
