@@ -89,7 +89,6 @@ namespace PomodoroForObsidian
             {
                 miniTaskInput.LostFocus += MiniTaskInput_LostFocus;
                 miniTaskInput.TextChanged += MiniTaskInput_TextChanged;
-                miniTaskInput.MouseDoubleClick += MiniTaskInput_MouseDoubleClick;
                 miniTaskInput.MouseEnter += MiniTaskInput_MouseEnter;
                 miniTaskInput.MouseLeave += MiniTaskInput_MouseLeave;
 
@@ -489,16 +488,6 @@ namespace PomodoroForObsidian
             DeactivateTagMode();
         }
 
-        private void MiniTaskInput_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            var tb = sender as TextBox;
-            if (tb != null)
-            {
-                tb.SelectAll();
-                e.Handled = true;
-            }
-        }
-
         private void MiniTaskInput_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             HandleAutoCompleteInteraction(sender, e);
@@ -711,7 +700,7 @@ namespace PomodoroForObsidian
             if (_flashTimer == null)
             {
                 _flashTimer = new DispatcherTimer();
-                _flashTimer.Interval = TimeSpan.FromMilliseconds(600);
+                _flashTimer.Interval = TimeSpan.FromMilliseconds(500);
                 _flashTimer.Tick += (s, e) => ToggleFlash();
             }
             _isFlashing = true;

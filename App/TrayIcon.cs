@@ -103,20 +103,32 @@ namespace PomodoroForObsidian
                 Utils.LogDebug("TrayIcon", "Blinking timer initialized on UI thread");
             });
 
+            // Start idle blinking immediately if no timer is running
+            if (!_pomodoroSessionManager.IsRunning)
+            {
+                StartBlinking();
+                Utils.LogDebug("TrayIcon", "Started idle blinking (no timer running)");
+            }
+
             _pomodoroSessionManager.ReverseCountdownStarted += (s, e) =>
             {
                 Utils.LogDebug("TrayIcon", "ReverseCountdownStarted event triggered, starting blinking");
                 StartBlinking();
             };
+            _pomodoroSessionManager.Started += (s, e) =>
+            {
+                Utils.LogDebug("TrayIcon", "Started event triggered, stopping idle blinking");
+                StopBlinking();
+            };
             _pomodoroSessionManager.Stopped += (s, e) =>
             {
-                Utils.LogDebug("TrayIcon", "Stopped event triggered, stopping blinking");
-                StopBlinking();
+                Utils.LogDebug("TrayIcon", "Stopped event triggered, starting idle blinking");
+                StartBlinking();
             };
             _pomodoroSessionManager.Reset += (s, e) =>
             {
-                Utils.LogDebug("TrayIcon", "Reset event triggered, stopping blinking");
-                StopBlinking();
+                Utils.LogDebug("TrayIcon", "Reset event triggered, starting idle blinking");
+                StartBlinking();
             };
         }
 
