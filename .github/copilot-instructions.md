@@ -12,3 +12,7 @@ This project is a C# .NET WPF Pomodoro timer app for Windows. The main window sh
 - When generating new documentation or helper files, always place them inside `_private_notes/` unless explicitly told to create a public-facing document.
 - Do not suggest committing files from the `_private_notes/` directory.
 - If you create plan documents, not related to the actual code, place them in the `_private_notes/` directory.
+
+## Git and GitHub Operations
+- Use GitHub CLI (`gh`) for all Git and GitHub-related operations.
+- Do not use GitKraken or other Git GUI tools.

@@ -91,6 +91,7 @@ namespace PomodoroForObsidian
                 miniTaskInput.TextChanged += MiniTaskInput_TextChanged;
                 miniTaskInput.MouseEnter += MiniTaskInput_MouseEnter;
                 miniTaskInput.MouseLeave += MiniTaskInput_MouseLeave;
+                miniTaskInput.PreviewMouseDown += MiniTaskInput_PreviewMouseDown;
 
                 if (_debugMode) System.Diagnostics.Debug.WriteLine("[MiniWindow] KeyDown handler attached to MiniTaskInput");
                 // Load saved value
@@ -823,6 +824,16 @@ namespace PomodoroForObsidian
             if (textBox != null)
             {
                 textBox.ToolTip = null;
+            }
+        }
+
+        private void MiniTaskInput_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            var textBox = sender as TextBox;
+            if (textBox != null && e.ClickCount == 3)
+            {
+                textBox.SelectAll();
+                e.Handled = true;
             }
         }
     }
