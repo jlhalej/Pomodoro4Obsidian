@@ -36,6 +36,12 @@ namespace PomodoroForObsidian
         private TimeSpan _negativeTimeElapsed = TimeSpan.Zero;
         public event EventHandler<TimeSpan>? NegativeTimerTick;
 
+        // In-memory session state to prevent race conditions
+        private string? _currentSessionTimestamp;
+        private DateTime? _currentSessionStartTime;
+        private string? _currentSessionTask;
+        private string? _currentSessionProject;
+
         public PomodoroSessionManager(ITaskHistoryRepository taskHistoryRepository)
         {
             _taskHistoryRepository = taskHistoryRepository;
@@ -115,14 +121,21 @@ namespace PomodoroForObsidian
                     return; // Block timer start
                 }
 
-                // Always create new session timestamp
-                // Note: SetPomodoroLength is now called before Start() to use in-memory value
-                var newTimestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
-                Utils.LogDebug(nameof(Start), $"Assigning new session timestamp: {newTimestamp}");
-                settings.CurrentSessionTimestamp = newTimestamp;
-                settings.CurrentSessionStartTime = DateTime.Now;
+                // Store session state in memory to prevent race conditions
+                _currentSessionTimestamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
+                _currentSessionStartTime = DateTime.Now;
+                _currentSessionTask = task;
+                _currentSessionProject = project;
+
+                Utils.LogDebug(nameof(Start), $"Assigning new session timestamp: {_currentSessionTimestamp}");
+
+                // Also save to disk as backup
+                settings.CurrentSessionTimestamp = _currentSessionTimestamp;
+                settings.CurrentSessionStartTime = _currentSessionStartTime;
+                settings.CurrentSessionInputField = task;
                 settings.Save();
                 Utils.LogDebug(nameof(Start), $"Saved session timestamp to settings: {settings.CurrentSessionTimestamp}");
+
                 LogRunningSessionToObsidian(true);
                 _updateTimer.Start();
                 _lastTask = task;
@@ -149,6 +162,12 @@ namespace PomodoroForObsidian
                 {
                     _taskHistoryRepository.AddOrUpdateTaskAsync(_lastTask);
                 }
+
+                // Clear in-memory session state
+                _currentSessionTimestamp = null;
+                _currentSessionStartTime = null;
+                _currentSessionTask = null;
+                _currentSessionProject = null;
 
                 // Reset timer in mini window and reset session timestamp/start time
                 ResetTimer();
@@ -246,9 +265,13 @@ namespace PomodoroForObsidian
         private void LogRunningSessionToObsidian(bool isInitialLog = false)
         {
             Utils.LogDebug(nameof(LogRunningSessionToObsidian), "Begin logging session to journal");
-            var settings = AppSettings.Load();
-            string timestamp = settings.CurrentSessionTimestamp ?? DateTime.Now.ToString("yyyyMMddHHmmssfff");
-            DateTime start = settings.CurrentSessionStartTime ?? DateTime.Now;
+
+            // Use in-memory session state (primary source)
+            string timestamp = _currentSessionTimestamp ?? DateTime.Now.ToString("yyyyMMddHHmmssfff");
+            DateTime start = _currentSessionStartTime ?? DateTime.Now;
+            string task = _currentSessionTask ?? string.Empty;
+            string project = _currentSessionProject ?? string.Empty;
+
             DateTime end = isInitialLog ? start.AddMinutes(1) : DateTime.Now;
             if (start.Hour == end.Hour && start.Minute == end.Minute)
             {
@@ -260,11 +283,11 @@ namespace PomodoroForObsidian
                 Utils.LogDebug(nameof(LogRunningSessionToObsidian), "Start and end time are the same, not logging session.");
                 return;
             }
+
+            var settings = AppSettings.Load();
             string today = DateTime.Now.ToString(settings.JournalNoteFormat.Replace("YYYY", "yyyy").Replace("DD", "dd"), CultureInfo.InvariantCulture);
             string journalFile = Path.Combine(settings.ObsidianJournalPath, today + ".md");
             string header = string.IsNullOrWhiteSpace(settings.Header) ? "# Pomodoro Sessions" : settings.Header;
-            string task = settings.CurrentSessionInputField ?? string.Empty;
-            string project = string.Empty;
             string entry = $"- {start:HH:mm} - {end:HH:mm} {task} {project} {timestamp}";
 
             Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Preparing to log session. Timestamp: {timestamp}, Start: {start:HH:mm}, End: {end:HH:mm}, Task: '{task}', JournalFile: {journalFile}");
@@ -340,8 +363,13 @@ namespace PomodoroForObsidian
         private void LogStoppedSessionToObsidian()
         {
             Utils.LogDebug(nameof(LogStoppedSessionToObsidian), "Begin logging stopped session to journal");
-            var settings = AppSettings.Load();
-            DateTime start = settings.CurrentSessionStartTime ?? DateTime.Now;
+
+            // Use in-memory session state (primary source)
+            DateTime start = _currentSessionStartTime ?? DateTime.Now;
+            string timestamp = _currentSessionTimestamp ?? string.Empty;
+            string task = _currentSessionTask ?? string.Empty;
+            string project = _currentSessionProject ?? string.Empty;
+
             DateTime end = DateTime.Now;
 
             // Handle case where start and end are in the same minute
@@ -359,6 +387,7 @@ namespace PomodoroForObsidian
             }
 
             // Check if session was auto-stopped by maximum session length
+            var settings = AppSettings.Load();
             bool wasAutoStopped = false;
             if (settings.MaximumSessionLength > 0)
             {
@@ -372,9 +401,6 @@ namespace PomodoroForObsidian
             string today = DateTime.Now.ToString(settings.JournalNoteFormat.Replace("YYYY", "yyyy").Replace("DD", "dd"), CultureInfo.InvariantCulture);
             string journalFile = Path.Combine(settings.ObsidianJournalPath, today + ".md");
             string header = string.IsNullOrWhiteSpace(settings.Header) ? "# Pomodoro Sessions" : settings.Header;
-            string task = settings.CurrentSessionInputField ?? string.Empty;
-            string project = string.Empty;
-            string timestamp = settings.CurrentSessionTimestamp ?? string.Empty;
             string autoStopMarker = wasAutoStopped ? " [auto-stopped]" : "";
             string entry = $"- {start:HH:mm} - {end:HH:mm} {task} {project}{autoStopMarker}"; Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Preparing to log stopped session. Start: {start:HH:mm}, End: {end:HH:mm}, Task: '{task}', JournalFile: {journalFile}, Timestamp: {timestamp}");
             Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Looking for header: '{header}' in journal file: {journalFile}");
@@ -462,10 +488,17 @@ namespace PomodoroForObsidian
         // Add: Update the current session input field (task)
         public void UpdateCurrentTask(string task)
         {
+            // If timer is running, update in-memory session state
+            if (_isRunning)
+            {
+                Utils.LogDebug(nameof(UpdateCurrentTask), $"Timer is running. Updating in-memory task from '{_currentSessionTask}' to '{task}'");
+                _currentSessionTask = task;
+            }
+
+            // Always update settings (used as default for next session)
             var settings = AppSettings.Load();
             settings.CurrentSessionInputField = task;
             System.Diagnostics.Debug.WriteLine("Saving Settings in UpdateCurrentTask");
-
             settings.Save();
         }
 
