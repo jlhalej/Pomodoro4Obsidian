@@ -305,6 +305,8 @@ namespace PomodoroForObsidian
             }
 
             // Efficient update: only update or append the entry, not rewrite the whole file if not needed
+            string fileContent = File.ReadAllText(journalFile);
+            bool endsWithNewLine = fileContent.Length > 0 && fileContent.EndsWith("\n");
             var linesList = new System.Collections.Generic.List<string>(File.ReadAllLines(journalFile));
             bool foundHeader = false;
             int headerIndex = -1;
@@ -326,7 +328,9 @@ namespace PomodoroForObsidian
             {
                 // Update the line in place
                 linesList[foundLine] = entry;
-                File.WriteAllLines(journalFile, linesList);
+                string newContent = string.Join(Environment.NewLine, linesList);
+                if (endsWithNewLine) newContent += Environment.NewLine;
+                File.WriteAllText(journalFile, newContent);
                 Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Updated session entry at line {foundLine} in journal file: {journalFile}");
             }
             else if (foundHeader)
@@ -346,7 +350,9 @@ namespace PomodoroForObsidian
                 }
 
                 linesList.Insert(insertIndex, entry);
-                File.WriteAllLines(journalFile, linesList);
+                string newContent = string.Join(Environment.NewLine, linesList);
+                if (endsWithNewLine) newContent += Environment.NewLine;
+                File.WriteAllText(journalFile, newContent);
                 Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Appended new session entry at end of section at line {insertIndex} in journal file: {journalFile}");
             }
             else
@@ -355,7 +361,9 @@ namespace PomodoroForObsidian
                 linesList.Add("");
                 linesList.Add(header);
                 linesList.Add(entry);
-                File.WriteAllLines(journalFile, linesList);
+                string newContent = string.Join(Environment.NewLine, linesList);
+                if (endsWithNewLine) newContent += Environment.NewLine;
+                File.WriteAllText(journalFile, newContent);
                 Utils.LogDebug(nameof(LogRunningSessionToObsidian), $"Header not found, appended header and new session entry at end of journal file: {journalFile}");
             }
         }
@@ -416,6 +424,8 @@ namespace PomodoroForObsidian
                 return;
             }
 
+            string fileContent = File.ReadAllText(journalFile);
+            bool endsWithNewLine = fileContent.Length > 0 && fileContent.EndsWith("\n");
             var linesList = new System.Collections.Generic.List<string>(File.ReadAllLines(journalFile));
             int foundLine = -1;
             if (!string.IsNullOrEmpty(timestamp))
@@ -434,7 +444,9 @@ namespace PomodoroForObsidian
             {
                 // Update the line in place
                 linesList[foundLine] = entry;
-                File.WriteAllLines(journalFile, linesList);
+                string newContent = string.Join(Environment.NewLine, linesList);
+                if (endsWithNewLine) newContent += Environment.NewLine;
+                File.WriteAllText(journalFile, newContent);
                 Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Updated session entry at line {foundLine} in journal file: {journalFile}");
             }
             else
@@ -468,7 +480,9 @@ namespace PomodoroForObsidian
                     }
 
                     linesList.Insert(insertIndex, entry);
-                    File.WriteAllLines(journalFile, linesList);
+                    string newContent = string.Join(Environment.NewLine, linesList);
+                    if (endsWithNewLine) newContent += Environment.NewLine;
+                    File.WriteAllText(journalFile, newContent);
                     Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Appended stopped session entry at end of section at line {insertIndex} in journal file: {journalFile}");
                 }
                 else
@@ -476,7 +490,9 @@ namespace PomodoroForObsidian
                     linesList.Add("");
                     linesList.Add(header);
                     linesList.Add(entry);
-                    File.WriteAllLines(journalFile, linesList);
+                    string newContent = string.Join(Environment.NewLine, linesList);
+                    if (endsWithNewLine) newContent += Environment.NewLine;
+                    File.WriteAllText(journalFile, newContent);
                     Utils.LogDebug(nameof(LogStoppedSessionToObsidian), $"Header not found, appended header and stopped session entry at end of journal file: {journalFile}");
                 }
             }
