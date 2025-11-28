@@ -36,13 +36,22 @@ Follow these steps **in order**:
    dotnet build --configuration Release
    ```
 
-3. **Commit the version change** to Git:
+3. **Commit ALL changes** to Git:
+   
+   a) **First, commit all code changes** (if any):
+   ```powershell
+   git status  # Check for any uncommitted changes
+   git add .   # Add all changed files
+   git commit -m "Fix [brief description of what was changed]"
+   ```
+   
+   b) **Then, commit the version change**:
    ```powershell
    git add App/PomodoroForObsidian.csproj
    git commit -m "Bump version to 1.5.5"
    git push origin master
    ```
-   ⚠️ **Important:** Push the version bump BEFORE building the release package.
+   ⚠️ **Important:** Push ALL changes (code + version bump) BEFORE building the release package.
 
 ## 🏗️ Build Process
 
