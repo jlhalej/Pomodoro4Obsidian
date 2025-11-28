@@ -23,6 +23,7 @@ namespace PomodoroForObsidian
         private bool _reverseCountdown = false;
         private TimeSpan _reverseTime = TimeSpan.Zero;
         public event EventHandler? ReverseCountdownStarted;
+        public event EventHandler? ReverseCountdownEnded;
 
         public event EventHandler<TimeSpan>? Tick;
         public event EventHandler? Started;
@@ -69,22 +70,35 @@ namespace PomodoroForObsidian
             if (_reverseCountdown)
             {
                 // In negative countdown: when user adds minutes, we subtract from negative elapsed
-                // e.g., showing "-1:00" (elapsed 1 min) + add 5 min = "-1:00" - 5 min = "4:00"
+                // e.g., showing "-1:00" (elapsed 1 min) + add 5 min = need to go back 4 min
+                Utils.LogDebug(nameof(AdjustTimerLength), $"Before adjustment: _negativeTimeElapsed={_negativeTimeElapsed}, deltaMinutes={deltaMinutes}");
                 _negativeTimeElapsed = _negativeTimeElapsed.Add(TimeSpan.FromMinutes(-deltaMinutes));
+                Utils.LogDebug(nameof(AdjustTimerLength), $"After adjustment: _negativeTimeElapsed={_negativeTimeElapsed}");
 
                 if (_negativeTimeElapsed <= TimeSpan.Zero)
                 {
                     // If adjustment brings us back to zero or positive, exit reverse countdown
+                    Utils.LogDebug(nameof(AdjustTimerLength), $"Exiting reverse countdown. _negativeTimeElapsed={_negativeTimeElapsed}, TotalMinutes={_negativeTimeElapsed.TotalMinutes}");
+
+                    // Store the value BEFORE stopping the negative timer (which might reset it)
+                    TimeSpan negativeValue = _negativeTimeElapsed;
+
                     _reverseCountdown = false;
-                    StopNegativeTimer();
-                    // Convert back to remaining time: if elapsed was -4, we want 4 minutes remaining
-                    _timeLeft = TimeSpan.FromMinutes(-_negativeTimeElapsed.TotalMinutes);
+                    StopNegativeTimer(); // This might reset _negativeTimeElapsed to zero
+
+                    // Convert back to remaining time using the stored value
+                    _timeLeft = negativeValue.Negate();
+                    Utils.LogDebug(nameof(AdjustTimerLength), $"Set _timeLeft={_timeLeft} (from negating {negativeValue})");
+
                     _negativeTimeElapsed = TimeSpan.Zero;
+                    ReverseCountdownEnded?.Invoke(this, EventArgs.Empty);
                     Tick?.Invoke(this, _timeLeft);
+                    Utils.LogDebug(nameof(AdjustTimerLength), $"After Tick invocation, _timeLeft={_timeLeft}");
                 }
                 else
                 {
                     // Still in negative countdown, update the display
+                    Utils.LogDebug(nameof(AdjustTimerLength), $"Still in reverse countdown. _negativeTimeElapsed={_negativeTimeElapsed}");
                     NegativeTimerTick?.Invoke(this, _negativeTimeElapsed);
                 }
             }
@@ -188,13 +202,16 @@ namespace PomodoroForObsidian
 
         public void ResetTimer()
         {
-            // Use the current in-memory _pomodoroLength value
-            // (Don't reload from disk to respect recent adjustments)
+            // Load current pomodoro length from settings to ensure we have the latest value
+            var settings = AppSettings.Load();
+            _pomodoroLength = settings.PomodoroTimerLength;
+
             _timeLeft = TimeSpan.FromMinutes(_pomodoroLength);
             _isRunning = false;
             _timer.Stop();
             _reverseCountdown = false;
             _reverseTime = TimeSpan.Zero;
+            Utils.LogDebug(nameof(ResetTimer), $"Timer reset to {_pomodoroLength} minutes (_timeLeft={_timeLeft})");
             Reset?.Invoke(this, EventArgs.Empty);
             Tick?.Invoke(this, _timeLeft);
         }
@@ -263,9 +280,11 @@ namespace PomodoroForObsidian
 
         private void StopNegativeTimer()
         {
+            Utils.LogDebug(nameof(StopNegativeTimer), $"StopNegativeTimer called. _negativeTimeElapsed before reset: {_negativeTimeElapsed}");
             if (_negativeTimer != null)
                 _negativeTimer.Stop();
             _negativeTimeElapsed = TimeSpan.Zero;
+            Utils.LogDebug(nameof(StopNegativeTimer), $"StopNegativeTimer finished. _negativeTimeElapsed after reset: {_negativeTimeElapsed}");
         }
 
         private void _updateTimer_Tick(object? sender, EventArgs e)

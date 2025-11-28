@@ -115,6 +115,11 @@ namespace PomodoroForObsidian
                 Utils.LogDebug("TrayIcon", "ReverseCountdownStarted event triggered, starting blinking");
                 StartBlinking();
             };
+            _pomodoroSessionManager.ReverseCountdownEnded += (s, e) =>
+            {
+                Utils.LogDebug("TrayIcon", "ReverseCountdownEnded event triggered, stopping blinking");
+                StopBlinking();
+            };
             _pomodoroSessionManager.Started += (s, e) =>
             {
                 Utils.LogDebug("TrayIcon", "Started event triggered, stopping idle blinking");

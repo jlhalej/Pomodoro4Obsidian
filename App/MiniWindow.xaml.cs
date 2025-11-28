@@ -100,6 +100,7 @@ namespace PomodoroForObsidian
             }
 
             _pomodoroSessionManager.ReverseCountdownStarted += (s, e) => StartFlashing();
+            _pomodoroSessionManager.ReverseCountdownEnded += (s, e) => StopFlashing();
             _pomodoroSessionManager.Tick += (s, t) => UpdateTimerText(t);
             _pomodoroSessionManager.Stopped += (s, e) =>
             {
