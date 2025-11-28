@@ -68,16 +68,24 @@ namespace PomodoroForObsidian
 
             if (_reverseCountdown)
             {
-                // In negative countdown: add minutes to reduce negative time
-                // e.g., -5 minutes + 5 minutes adjustment = 0 minutes
+                // In negative countdown: when user adds minutes, we subtract from negative elapsed
+                // e.g., showing "-1:00" (elapsed 1 min) + add 5 min = "-1:00" - 5 min = "4:00"
                 _negativeTimeElapsed = _negativeTimeElapsed.Add(TimeSpan.FromMinutes(-deltaMinutes));
-                if (_negativeTimeElapsed < TimeSpan.Zero)
+
+                if (_negativeTimeElapsed <= TimeSpan.Zero)
                 {
-                    // If adjustment brings us back to positive, exit reverse countdown
+                    // If adjustment brings us back to zero or positive, exit reverse countdown
                     _reverseCountdown = false;
                     StopNegativeTimer();
+                    // Convert back to remaining time: if elapsed was -4, we want 4 minutes remaining
                     _timeLeft = TimeSpan.FromMinutes(-_negativeTimeElapsed.TotalMinutes);
                     _negativeTimeElapsed = TimeSpan.Zero;
+                    Tick?.Invoke(this, _timeLeft);
+                }
+                else
+                {
+                    // Still in negative countdown, update the display
+                    NegativeTimerTick?.Invoke(this, _negativeTimeElapsed);
                 }
             }
             else
@@ -88,9 +96,11 @@ namespace PomodoroForObsidian
                 // Don't allow negative values in normal countdown
                 if (_timeLeft < TimeSpan.Zero)
                     _timeLeft = TimeSpan.Zero;
+
+                Tick?.Invoke(this, _timeLeft);
             }
 
-            Utils.LogDebug(nameof(AdjustTimerLength), $"Timer adjusted by {deltaMinutes} minutes. New time left: {_timeLeft}");
+            Utils.LogDebug(nameof(AdjustTimerLength), $"Timer adjusted by {deltaMinutes} minutes. _reverseCountdown={_reverseCountdown}, _negativeTimeElapsed={_negativeTimeElapsed}, _timeLeft={_timeLeft}");
         }
 
         public void Start(string? task = null, string? project = null)
@@ -198,8 +208,9 @@ namespace PomodoroForObsidian
                 {
                     _timeLeft = _timeLeft.Add(TimeSpan.FromSeconds(-1));
                     Tick?.Invoke(this, _timeLeft);
-                    // Check for maximum session length
-                    if (settings.MaximumSessionLength > 0 && (DateTime.Now - (settings.CurrentSessionStartTime ?? DateTime.Now)).TotalMinutes >= settings.MaximumSessionLength)
+                    // Check for maximum session length using in-memory session start time
+                    if (settings.MaximumSessionLength > 0 && _currentSessionStartTime.HasValue &&
+                        (DateTime.Now - _currentSessionStartTime.Value).TotalMinutes >= settings.MaximumSessionLength)
                     {
                         Utils.LogDebug(nameof(Timer_Tick), "Maximum session length reached. Stopping timer.");
                         Stop();
@@ -222,9 +233,9 @@ namespace PomodoroForObsidian
             }
             else
             {
-                // Reverse countdown: check for maximum session length
-                if (settings.MaximumSessionLength > 0 &&
-                    (DateTime.Now - (settings.CurrentSessionStartTime ?? DateTime.Now)).TotalMinutes >= settings.MaximumSessionLength)
+                // Reverse countdown: check for maximum session length using in-memory session start time
+                if (settings.MaximumSessionLength > 0 && _currentSessionStartTime.HasValue &&
+                    (DateTime.Now - _currentSessionStartTime.Value).TotalMinutes >= settings.MaximumSessionLength)
                 {
                     Utils.LogDebug(nameof(Timer_Tick), "Maximum session length reached during negative countdown. Auto-stopping timer.");
                     Utils.BubbleNotification("Maximum session length reached. Timer stopped automatically.");
