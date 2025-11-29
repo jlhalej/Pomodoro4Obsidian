@@ -289,6 +289,30 @@ namespace PomodoroForObsidian
 
         private void _updateTimer_Tick(object? sender, EventArgs e)
         {
+            // Check for midnight crossover: if session started on previous day and now it's first minute of new day
+            if (_isRunning && _currentSessionStartTime.HasValue)
+            {
+                DateTime now = DateTime.Now;
+                DateTime sessionStart = _currentSessionStartTime.Value;
+
+                // Detect midnight crossover: session started on previous day and current time is in first minute after midnight
+                if (sessionStart.Date < now.Date && now.Hour == 0 && now.Minute == 0)
+                {
+                    Utils.LogDebug(nameof(_updateTimer_Tick), $"Midnight crossover detected. Session started: {sessionStart:yyyy-MM-dd HH:mm}, Current time: {now:yyyy-MM-dd HH:mm}. Stopping timer.");
+
+                    // Remove timestamp from the final entry in previous day's file before stopping
+                    RemoveTimestampFromCurrentSession();
+
+                    // Stop the timer
+                    Stop();
+
+                    // Notify user
+                    Utils.BubbleNotification("Stopping timer at midnight. Please create the new day note and start a new timer.");
+
+                    return; // Exit early, don't proceed with normal logging
+                }
+            }
+
             LogRunningSessionToObsidian();
         }
 
@@ -665,6 +689,67 @@ namespace PomodoroForObsidian
             catch (Exception ex)
             {
                 Utils.LogDebug(nameof(GetFileListFromVault), $"Error reading vault files: {ex.Message}");
+            }
+        }
+
+        private void RemoveTimestampFromCurrentSession()
+        {
+            if (string.IsNullOrEmpty(_currentSessionTimestamp) || !_currentSessionStartTime.HasValue)
+            {
+                Utils.LogDebug(nameof(RemoveTimestampFromCurrentSession), "No current session to clean up.");
+                return;
+            }
+
+            Utils.LogDebug(nameof(RemoveTimestampFromCurrentSession), $"Removing timestamp from session: {_currentSessionTimestamp}");
+
+            var settings = AppSettings.Load();
+            DateTime sessionStart = _currentSessionStartTime.Value;
+            string sessionDay = sessionStart.ToString(settings.JournalNoteFormat.Replace("YYYY", "yyyy").Replace("DD", "dd"), CultureInfo.InvariantCulture);
+            string journalFile = Path.Combine(settings.ObsidianJournalPath, sessionDay + ".md");
+
+            if (!File.Exists(journalFile))
+            {
+                Utils.LogDebug(nameof(RemoveTimestampFromCurrentSession), $"Journal file does not exist: {journalFile}");
+                return;
+            }
+
+            try
+            {
+                string fileContent = File.ReadAllText(journalFile);
+                var linesList = new List<string>(File.ReadAllLines(journalFile));
+                bool fileModified = false;
+
+                // Find the line with our timestamp and remove the timestamp from it
+                for (int i = 0; i < linesList.Count; i++)
+                {
+                    if (linesList[i].Contains(_currentSessionTimestamp))
+                    {
+                        // Remove the timestamp from the end of the line
+                        string line = linesList[i];
+                        int timestampIndex = line.LastIndexOf(_currentSessionTimestamp);
+                        if (timestampIndex >= 0)
+                        {
+                            // Remove timestamp and any trailing whitespace
+                            linesList[i] = line.Substring(0, timestampIndex).TrimEnd();
+                            fileModified = true;
+                            Utils.LogDebug(nameof(RemoveTimestampFromCurrentSession), $"Removed timestamp from line {i}: '{linesList[i]}'");
+                            break;
+                        }
+                    }
+                }
+
+                if (fileModified)
+                {
+                    bool endsWithNewLine = fileContent.Length > 0 && fileContent.EndsWith("\n");
+                    string newContent = string.Join(Environment.NewLine, linesList);
+                    if (endsWithNewLine) newContent += Environment.NewLine;
+                    File.WriteAllText(journalFile, newContent);
+                    Utils.LogDebug(nameof(RemoveTimestampFromCurrentSession), $"Updated journal file: {journalFile}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Utils.LogDebug(nameof(RemoveTimestampFromCurrentSession), $"Error removing timestamp: {ex.Message}");
             }
         }
 
