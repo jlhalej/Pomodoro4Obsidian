@@ -71,6 +71,7 @@ scripts/
 
 ### Error Handling
 - Catch specific exceptions, not generic `Exception`
+- Exception: Generic Exception catching is acceptable when recovering from serialization/deserialization failures (e.g., AppSettings.Load), where multiple exception types are possible and graceful recovery is appropriate
 - Log exceptions with context (use existing logging patterns in codebase)
 - Avoid silent failures; provide user feedback through UI or logs
 - For file operations (Obsidian paths), validate paths exist before access
@@ -105,9 +106,11 @@ scripts/
 
 ### Debugging Tips
 - The app logs session history to `AppData/Local/Pomodoro4Obsidian/task_history.json`
+- Debug logs are written to `bin/Debug/net8.0-windows/debug.csv` when DebugLogEnabled is true in settings - check this for detailed app lifecycle events, session management, and Obsidian integration issues
 - Obsidian paths are stored in `AppSettings.cs` 
 - Check Windows Event Viewer for WPF rendering issues
 - Squirrel updates cache in `AppData/Local/[App]` - clear when testing fresh installs
+- If the app fails to start silently, check if `AppData/Local/Pomodoro4Obsidian/settings.json` is corrupted or empty - the app will auto-recover by recreating with defaults
 
 ### Common Tasks
 - **Adding a new setting**: Update `AppSettings.cs`, then add UI in `SettingsWindow.xaml`

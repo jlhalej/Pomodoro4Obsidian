@@ -28,13 +28,15 @@ namespace PomodoroForObsidian
 
         protected override async void OnStartup(StartupEventArgs e)
         {
-            SquirrelAwareApp.HandleEvents(
-                onInitialInstall: OnAppInstall,
-                onAppUpdate: OnAppUpdate,
-                onAppUninstall: OnAppUninstall);
+            try
+            {
+                SquirrelAwareApp.HandleEvents(
+                    onInitialInstall: OnAppInstall,
+                    onAppUpdate: OnAppUpdate,
+                    onAppUninstall: OnAppUninstall);
 
-            base.OnStartup(e);
-            this.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                base.OnStartup(e);
+                this.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
             bool isFirstRun;
             _settings = AppSettings.Load(out isFirstRun);
@@ -115,6 +117,14 @@ namespace PomodoroForObsidian
             }
 
             InitializeAutoUpdateAsync();
+            }
+            catch (Exception ex)
+            {
+                Utils.LogDebug("App.OnStartup", $"FATAL ERROR: {ex.Message}\n{ex.StackTrace}");
+                MessageBox.Show($"Application failed to start:\n\n{ex.Message}", 
+                    "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                this.Shutdown();
+            }
         }
 
         public MiniWindow? GetMiniWindow() => _miniWindow;

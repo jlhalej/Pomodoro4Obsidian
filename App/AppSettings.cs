@@ -49,18 +49,35 @@ namespace PomodoroForObsidian
             // Check if settings file exists
             if (File.Exists(SettingsFilePath))
             {
-                var json = File.ReadAllText(SettingsFilePath);
-                var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-                settings.FirstRun = false;
-                return settings;
+                try
+                {
+                    var json = File.ReadAllText(SettingsFilePath);
+                    if (string.IsNullOrWhiteSpace(json))
+                    {
+                        Utils.LogDebug("AppSettings.Load", $"settings.json is empty at '{SettingsFilePath}', creating with defaults.");
+                        var emptySettings = new AppSettings();
+                        emptySettings.Save();
+                        return emptySettings;
+                    }
+                    var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                    settings.FirstRun = false;
+                    return settings;
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogDebug("AppSettings.Load", $"Failed to deserialize settings.json: {ex.Message}. Creating with defaults.");
+                    var newSettings = new AppSettings();
+                    newSettings.Save();
+                    return newSettings;
+                }
             }
 
             // No existing settings found, create new ones
             Utils.LogDebug("AppSettings.Load", $"settings.json NOT found at '{SettingsFilePath}', creating with defaults.");
-            var newSettings = new AppSettings();
-            newSettings.Save();
+            var defaultSettings = new AppSettings();
+            defaultSettings.Save();
             Utils.LogDebug("AppSettings.Load", $"settings.json created at '{SettingsFilePath}' with default values.");
-            return newSettings;
+            return defaultSettings;
         }
 
         public static AppSettings Load(out bool isFirstRun)
@@ -71,20 +88,39 @@ namespace PomodoroForObsidian
             // Check if settings file exists
             if (File.Exists(SettingsFilePath))
             {
-                var json = File.ReadAllText(SettingsFilePath);
-                var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-                settings.FirstRun = false;
-                isFirstRun = false;
-                return settings;
+                try
+                {
+                    var json = File.ReadAllText(SettingsFilePath);
+                    if (string.IsNullOrWhiteSpace(json))
+                    {
+                        Utils.LogDebug("AppSettings.Load", $"settings.json is empty at '{SettingsFilePath}', creating with defaults.");
+                        var emptySettings = new AppSettings();
+                        emptySettings.Save();
+                        isFirstRun = false;
+                        return emptySettings;
+                    }
+                    var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                    settings.FirstRun = false;
+                    isFirstRun = false;
+                    return settings;
+                }
+                catch (Exception ex)
+                {
+                    Utils.LogDebug("AppSettings.Load", $"Failed to deserialize settings.json: {ex.Message}. Creating with defaults.");
+                    var newSettings = new AppSettings();
+                    newSettings.Save();
+                    isFirstRun = false;
+                    return newSettings;
+                }
             }
 
             // No existing settings found, create new ones
             Utils.LogDebug("AppSettings.Load", $"settings.json NOT found at '{SettingsFilePath}', creating with defaults.");
-            var newSettings = new AppSettings();
-            newSettings.Save();
+            var defaultSettings = new AppSettings();
+            defaultSettings.Save();
             Utils.LogDebug("AppSettings.Load", $"settings.json created at '{SettingsFilePath}' with default values.");
             isFirstRun = true;
-            return newSettings;
+            return defaultSettings;
         }
 
         public void Save()
