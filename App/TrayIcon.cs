@@ -22,6 +22,9 @@ namespace PomodoroForObsidian
         private Icon? _primaryIcon;
         private Icon? _secondaryIcon;
 
+        // Fields for ensure visible timer (notch fallback)
+        private DispatcherTimer? _ensureVisibleTimer;
+
         private PomodoroSessionManager _pomodoroSessionManager;
         private AppSettings _settings;
         private AutoCompleteManager _autoCompleteManager;
@@ -101,6 +104,11 @@ namespace PomodoroForObsidian
                 _blinkTimer.Interval = TimeSpan.FromMilliseconds(500);
                 _blinkTimer.Tick += BlinkTimer_Tick;
                 Utils.LogDebug("TrayIcon", "Blinking timer initialized on UI thread");
+
+                _ensureVisibleTimer = new DispatcherTimer(DispatcherPriority.Normal, System.Windows.Application.Current.Dispatcher);
+                _ensureVisibleTimer.Interval = TimeSpan.FromMilliseconds(1000);
+                _ensureVisibleTimer.Tick += EnsureVisibleTimer_Tick;
+                Utils.LogDebug("TrayIcon", "Ensure visible timer initialized on UI thread");
             });
 
             // Start idle blinking immediately if no timer is running
@@ -328,6 +336,58 @@ namespace PomodoroForObsidian
             miniWindow.Show();
             miniWindow.Activate();
             miniWindow.Focus();
+
+            // Start the ensure visible timer if notch is enabled
+            if (_settings.TaskbarModificationEnabled)
+            {
+                StartEnsureVisibleTimer();
+            }
+        }
+
+        private void EnsureMiniWindowVisible()
+        {
+            var app = (App)System.Windows.Application.Current;
+            var miniWindow = app.GetMiniWindow();
+            if (miniWindow != null)
+            {
+                miniWindow.Show();
+            }
+        }
+
+        private void StartEnsureVisibleTimer()
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (_ensureVisibleTimer != null && !_ensureVisibleTimer.IsEnabled)
+                {
+                    _ensureVisibleTimer.Start();
+                    Utils.LogDebug("TrayIcon", "Ensure visible timer started");
+                }
+            });
+        }
+
+        private void StopEnsureVisibleTimer()
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (_ensureVisibleTimer != null && _ensureVisibleTimer.IsEnabled)
+                {
+                    _ensureVisibleTimer.Stop();
+                    Utils.LogDebug("TrayIcon", "Ensure visible timer stopped");
+                }
+            });
+        }
+
+        private void EnsureVisibleTimer_Tick(object? sender, EventArgs e)
+        {
+            try
+            {
+                EnsureMiniWindowVisible();
+            }
+            catch (Exception ex)
+            {
+                Utils.LogDebug("TrayIcon", $"Error during ensure visible timer tick: {ex.Message}");
+            }
         }
 
         private void ShowSettingsWindow()
@@ -403,6 +463,7 @@ namespace PomodoroForObsidian
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
                     _blinkTimer?.Stop();
+                    _ensureVisibleTimer?.Stop();
                 });
             }
             catch (Exception ex)
